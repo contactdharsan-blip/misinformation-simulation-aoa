@@ -1,0 +1,16 @@
+# Object files
+obj/
+*.o
+
+# Executables
+simulation
+visualizer
+
+# Output data
+output/
+
+# OS generated
+.DS_Store
+
+# Editor
+.vscode/

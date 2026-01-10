@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation Control Center</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="logo">SIM ENGINE v1.0</div>
+        <nav>
+            <div class="nav-item active" onclick="showSection('sim')">Simulation Core</div>
+            <div class="nav-item" onclick="showSection('agents')">Agent Settings</div>
+            <div class="nav-item" onclick="showSection('sedpnr')">SEDPNR Transitions</div>
+            <div class="nav-item" onclick="showSection('visualizer')">Spatial Visualizer</div>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="animate">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <h1>Control Center</h1>
+                    <p class="subtitle">Fine-tune simulation parameters without touching code.</p>
+                </div>
+                <div class="status-badge"
+                    style="background: rgba(34, 197, 94, 0.1); color: var(--success); padding: 0.5rem 1rem; border-radius: 20px; font-weight: 600; font-size: 0.9rem;">
+                    ● Ready
+                </div>
+            </div>
+        </header>
+
+        <section id="sim" class="config-grid animate">
+            <div class="card">
+                <div class="card-title">Core Runtime</div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Total Population</label>
+                        <span class="value-display" id="population_val">1000</span>
+                    </div>
+                    <input type="range" id="population" min="100" max="10000" step="100" value="1000"
+                        oninput="updateVal('population')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Time Steps</label>
+                        <span class="value-display" id="timesteps_val">500</span>
+                    </div>
+                    <input type="range" id="timesteps" min="50" max="2000" step="50" value="500"
+                        oninput="updateVal('timesteps')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Number of Towns</label>
+                        <span class="value-display" id="num_towns_val">5</span>
+                    </div>
+                    <input type="range" id="num_towns" min="1" max="20" step="1" value="5"
+                        oninput="updateVal('num_towns')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Schools per Town</label>
+                        <span class="value-display" id="schools_per_town_val">3</span>
+                    </div>
+                    <input type="range" id="schools_per_town" min="1" max="10" step="1" value="3"
+                        oninput="updateVal('schools_per_town')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Religious centers per Town</label>
+                        <span class="value-display" id="religious_per_town_val">5</span>
+                    </div>
+                    <input type="range" id="religious_per_town" min="1" max="20" step="1" value="5"
+                        oninput="updateVal('religious_per_town')">
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Spread Modifiers</div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Misinfo Spread Multiplier</label>
+                        <span class="value-display" id="misinfo_mult_val">6.0x</span>
+                    </div>
+                    <input type="range" id="misinfo_mult" min="1" max="20" step="0.5" value="6.0"
+                        oninput="updateVal('misinfo_mult')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Truth Adoption Difficulty</label>
+                        <span class="value-display" id="truth_threshold_val">0.8</span>
+                    </div>
+                    <input type="range" id="truth_threshold" min="0" max="1" step="0.05" value="0.8"
+                        oninput="updateVal('truth_threshold')">
+                </div>
+            </div>
+        </section>
+
+        <section id="agents" class="config-grid animate" style="display: none;">
+            <div class="card">
+                <div class="card-title">Credibility Formula</div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Age Weight</label>
+                        <span class="value-display" id="age_weight_val">0.4</span>
+                    </div>
+                    <input type="range" id="age_weight" min="0" max="1" step="0.05" value="0.4"
+                        oninput="updateVal('age_weight')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Education Weight</label>
+                        <span class="value-display" id="edu_weight_val">0.6</span>
+                    </div>
+                    <input type="range" id="edu_weight" min="0" max="1" step="0.05" value="0.6"
+                        oninput="updateVal('edu_weight')">
+                </div>
+            </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Location Capacities</div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>School Capacity</label>
+                        <span class="value-display" id="school_capacity_val">200</span>
+                    </div>
+                    <input type="range" id="school_capacity" min="50" max="1000" step="50" value="200"
+                        oninput="updateVal('school_capacity')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Religious Capacity</label>
+                        <span class="value-display" id="religious_capacity_val">150</span>
+                    </div>
+                    <input type="range" id="religious_capacity" min="50" max="1000" step="50" value="150"
+                        oninput="updateVal('religious_capacity')">
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Social Connectivity</div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Same Town Weight</label>
+                        <span class="value-display" id="same_town_weight_val">0.20</span>
+                    </div>
+                    <input type="range" id="same_town_weight" min="0" max="1" step="0.05" value="0.20"
+                        oninput="updateVal('same_town_weight')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Same School Weight</label>
+                        <span class="value-display" id="same_school_weight_val">0.50</span>
+                    </div>
+                    <input type="range" id="same_school_weight" min="0" max="1" step="0.05" value="0.50"
+                        oninput="updateVal('same_school_weight')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Same Religious Weight</label>
+                        <span class="value-display" id="same_religious_weight_val">0.40</span>
+                    </div>
+                    <input type="range" id="same_religious_weight" min="0" max="1" step="0.05" value="0.40"
+                        oninput="updateVal('same_religious_weight')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>Max Connections / Agent</label>
+                        <span class="value-display" id="max_conn_val">10</span>
+                    </div>
+                    <input type="range" id="max_conn" min="1" max="50" step="1" value="10"
+                        oninput="updateVal('max_conn')">
+                </div>
+            </div>
+        </section>
+
+        <section id="sedpnr" class="config-grid animate" style="display: none;">
+            <div class="card">
+                <div class="card-title">Infection Transitions</div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>S → E (Exposure Prob)</label>
+                        <span class="value-display" id="prob_s_to_e_val">0.10</span>
+                    </div>
+                    <input type="range" id="prob_s_to_e" min="0" max="1" step="0.01" value="0.10"
+                        oninput="updateVal('prob_s_to_e')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>E → D (Doubt Prob)</label>
+                        <span class="value-display" id="prob_e_to_d_val">0.20</span>
+                    </div>
+                    <input type="range" id="prob_e_to_d" min="0" max="1" step="0.01" value="0.20"
+                        oninput="updateVal('prob_e_to_d')">
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Adoption Transitions</div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>D → P (Propagate Prob)</label>
+                        <span class="value-display" id="prob_d_to_p_val">0.05</span>
+                    </div>
+                    <input type="range" id="prob_d_to_p" min="0" max="1" step="0.01" value="0.05"
+                        oninput="updateVal('prob_d_to_p')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>D → N (Adopt Prob)</label>
+                        <span class="value-display" id="prob_d_to_n_val">0.10</span>
+                    </div>
+                    <input type="range" id="prob_d_to_n" min="0" max="1" step="0.01" value="0.10"
+                        oninput="updateVal('prob_d_to_n')">
+                </div>
+                <div class="input-group">
+                    <div class="label-container">
+                        <label>D → R (Reject Prob)</label>
+                        <span class="value-display" id="prob_d_to_r_val">0.05</span>
+                    </div>
+                    <input type="range" id="prob_d_to_r" min="0" max="1" step="0.01" value="0.05"
+                        oninput="updateVal('prob_d_to_r')">
+                </div>
+        </section>
+
+        <section id="visualizer" class="animate" style="display: none; flex-direction: column; gap: 2rem;">
+            <div style="display: grid; grid-template-columns: 1fr 300px; gap: 2rem;">
+                <!-- Map Column -->
+                <div class="card" style="width: 100%;">
+                    <div class="card-title">
+                        <span>City Simulation Map</span>
+                        <div style="display: flex; gap: 1rem;">
+                            <select id="claim-selector" class="btn btn-secondary"
+                                style="padding: 0.5rem 1rem; font-size: 0.85rem;" onchange="renderMap()">
+                                <option value="0">Truth Claim</option>
+                                <option value="1">Misinfo Claim 1</option>
+                                <option value="2">Misinfo Claim 2</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: center;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('csv-upload').click()"
+                            style="padding: 0.75rem 1.25rem; font-size: 0.9rem;">
+                            📁 Import CSV
+                        </button>
+                        <input type="file" id="csv-upload" style="display: none;" accept=".csv"
+                            onchange="loadSpatialData(this)">
+
+                        <div id="playback-controls"
+                            style="display: none; align-items: center; gap: 1rem; flex-grow: 1; background: rgba(255,255,255,0.03); padding: 0.5rem 1.5rem; border-radius: 14px; border: 1px solid var(--border-color);">
+                            <button class="btn btn-secondary" id="play-btn" onclick="togglePlayback()"
+                                style="min-width: 100px;">▶ Play</button>
+                            <input type="range" id="time-slider" min="0" max="100" value="0" style="flex-grow: 1;"
+                                oninput="onTimeSliderChange(this.value)">
+                            <span id="current-time-display"
+                                style="font-family: monospace; font-weight: 600; width: 60px;">T: 0</span>
+                        </div>
+                    </div>
+
+                    <div
+                        style="display: flex; justify-content: center; background: #0a0a0a; border-radius: 16px; padding: 1rem; border: 1px solid var(--border-color); position: relative; overflow: hidden;">
+                        <canvas id="map-canvas" width="600" height="600" style="max-width: 100%;"></canvas>
+
+                        <!-- Mini Map Legend -->
+                        <div id="legend"
+                            style="position: absolute; top: 1rem; right: 1rem; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); padding: 1rem; border-radius: 12px; font-size: 0.75rem; border: 1px solid var(--border-color); color: #fff; z-index: 10;">
+                            <div
+                                style="font-weight: 700; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);">
+                                Legend</div>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 2px; background: #4f46e5; box-shadow: 0 0 10px rgba(79, 70, 229, 0.4);"></span>
+                                    <span>Truth (Propagating)</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 2px; background: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);"></span>
+                                    <span>Misinfo (Propagating)</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 2px; background: #f59e0b;"></span>
+                                    <span>Exposed / Doubtful</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 2px; background: #10b981;"></span>
+                                    <span>Neutral / Adopted</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 2px; border: 1px solid #444; background: rgba(255,255,255,0.05);"></span>
+                                    <span>Susceptible</span>
+                                </div>
+                                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 0.25rem 0;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span
+                                        style="width: 12px; height: 12px; border: 1px dashed #6366f1; background: transparent;"></span>
+                                    <span>School Zone</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span
+                                        style="width: 12px; height: 12px; border: 1px dashed #a855f7; background: transparent;"></span>
+                                    <span>Religious Zone</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Analytics Column -->
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div class="card" style="padding: 1.5rem;">
+                        <div
+                            style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600;">
+                            ACTIVE PROPAGATORS</div>
+                        <div id="stat-propagating" style="font-size: 2.5rem; font-weight: 800; color: #ef4444;">0</div>
+                    </div>
+
+                    <div class="card" style="padding: 1.5rem;">
+                        <div
+                            style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600;">
+                            RECOVERED / NEUTRAL</div>
+                        <div id="stat-recovered" style="font-size: 2.5rem; font-weight: 800; color: #10b981;">0</div>
+                    </div>
+
+                    <div class="card" style="padding: 1.5rem;">
+                        <div
+                            style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600;">
+                            REACH (%)</div>
+                        <div id="stat-reach" style="font-size: 2.5rem; font-weight: 800; color: var(--accent-primary);">
+                            0.0%</div>
+                    </div>
+
+                    <div class="card" style="padding: 1.5rem; flex-grow: 1;">
+                        <div class="card-title" style="font-size: 0.9rem; margin-bottom: 1rem;">Simulation Log</div>
+                        <div id="sim-log"
+                            style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted); height: 200px; overflow-y: auto;">
+                            > Waiting for data...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="actions animate">
+            <button class="btn btn-primary" onclick="generateConfig()">Save & Download Config</button>
+            <button class="btn btn-secondary" onclick="resetDefaults()">Reset to Defaults</button>
+        </div>
+
+        <div id="output-preview"
+            style="margin-top: 3rem; background: #000; padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.85rem; color: #a5d6ff; display: none;">
+            <!-- Generated output will appear here -->
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
