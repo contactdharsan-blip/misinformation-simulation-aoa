@@ -23,6 +23,8 @@ struct Configuration {
   int religious_per_town = 5;
   int school_capacity = 200;
   int religious_capacity = 150;
+  int workplaces_per_town = 10;
+  int workplace_capacity = 500;
 
   // Agent Demographics & Credibility
   double age_weight = 0.4;
@@ -40,6 +42,7 @@ struct Configuration {
   double age_group_weight = 0.3;
   double ethnicity_weight = 0.2;
   double religious_participation_prob = 0.6; // 60% of population is religious
+  double same_workplace_weight = 0.45;
 
   // SEDPNR Transitions
   double prob_s_to_e = 0.1;
@@ -58,6 +61,7 @@ struct Configuration {
 
   // Simulation Settings
   int output_interval = 1;
+  bool full_spatial_snapshot = true; // Record all agents for visualization
 
   // Singleton access
   static Configuration &instance() {
@@ -156,6 +160,14 @@ private:
         output_interval = std::stoi(val);
       else if (key == "religious_participation_prob")
         religious_participation_prob = std::stod(val);
+      else if (key == "workplaces_per_town")
+        workplaces_per_town = std::stoi(val);
+      else if (key == "workplace_capacity")
+        workplace_capacity = std::stoi(val);
+      else if (key == "same_workplace_weight")
+        same_workplace_weight = std::stod(val);
+      else if (key == "full_spatial_snapshot")
+        full_spatial_snapshot = (val == "true" || val == "1");
     } catch (...) {
     }
   }

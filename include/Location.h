@@ -1,5 +1,5 @@
 #pragma once
-
+#include "Demographics.h"
 #include <string>
 #include <vector>
 
@@ -10,6 +10,7 @@
 enum class LocationType {
   SCHOOL,
   RELIGIOUS_ESTABLISHMENT,
+  WORKPLACE,
   HOME // For future expansion
 };
 
@@ -23,14 +24,19 @@ struct Location {
   LocationType type;
   int townId;
   std::string name;
-  int capacity;                    // Max agents that can be assigned
-  std::vector<int> assignedAgents; // Agent IDs at this location
+  int capacity;                       // Max agents that can be assigned
+  ReligiousDenomination denomination; // Only for religious sites
+  std::vector<int> assignedAgents;    // Agent IDs at this location
 
-  Location() : id(-1), type(LocationType::HOME), townId(-1), capacity(0) {}
+  Location()
+      : id(-1), type(LocationType::HOME), townId(-1), capacity(0),
+        denomination(ReligiousDenomination::NONE) {}
 
   Location(int locId, LocationType locType, int town,
-           const std::string &locName, int cap)
-      : id(locId), type(locType), townId(town), name(locName), capacity(cap) {}
+           const std::string &locName, int cap,
+           ReligiousDenomination denom = ReligiousDenomination::NONE)
+      : id(locId), type(locType), townId(town), name(locName), capacity(cap),
+        denomination(denom) {}
 
   // Add an agent to this location
   bool assignAgent(int agentId) {
@@ -48,6 +54,8 @@ struct Location {
       return "School";
     case LocationType::RELIGIOUS_ESTABLISHMENT:
       return "Religious";
+    case LocationType::WORKPLACE:
+      return "Workplace";
     case LocationType::HOME:
       return "Home";
     default:

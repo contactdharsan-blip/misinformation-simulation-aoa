@@ -9,6 +9,7 @@
 #include <iostream>
 #include <map>
 #include <random>
+#include <string>
 #include <vector>
 
 // Note: Simulation parameters are now managed by Configuration::instance()
@@ -59,8 +60,9 @@ public:
   Simulation(unsigned int seed = 42) : currentTime(0), rng(seed) {
     spatialFile.open("output/spatial_data.csv");
     if (spatialFile.is_open()) {
-      spatialFile << "Time,AgentId,TownId,SchoolId,ReligiousId,ClaimId,State,"
-                     "IsMisinformation\n";
+      spatialFile
+          << "Time,AgentId,TownId,SchoolId,ReligiousId,WorkplaceId,ClaimId,"
+             "State,IsMisinformation,Ethnicity,Denomination\n";
     }
   }
 
@@ -84,7 +86,7 @@ public:
   }
 
   // Add a claim to the simulation
-  void addClaim(const Claim &claim, int initialPropagators = 5) {
+  void addClaim(const Claim &claim, int initialPropagators = 10) {
     Claim c = claim;
     c.originTime = currentTime;
     claims.push_back(c);
@@ -104,6 +106,38 @@ public:
         city.agents[agentIdx].setState(c.claimId, SEDPNRState::PROPAGATING);
 
         if (c.originAgentId < 0) {
+          claims.back().originAgentId = static_cast<int>(agentIdx);
+        }
+      }
+    }
+  }
+
+  // Add a claim with specific number of propagators per town
+  void addClaimPerDistrict(const Claim &claim, int propagatorsPerTown = 5) {
+    Claim c = claim;
+    c.originTime = currentTime;
+    claims.push_back(c);
+
+    // Initialize state history for this claim
+    stateHistory[c.claimId] = std::vector<StateCounts>();
+
+    // For each town, find agents and pick some
+    std::map<int, std::vector<size_t>> townToAgents;
+    for (size_t i = 0; i < city.agents.size(); ++i) {
+      townToAgents[city.agents[i].homeTownId].push_back(i);
+    }
+
+    for (auto it = townToAgents.begin(); it != townToAgents.end(); ++it) {
+      std::vector<size_t> indices = it->second;
+      std::shuffle(indices.begin(), indices.end(), rng);
+
+      for (int i = 0;
+           i < propagatorsPerTown && i < static_cast<int>(indices.size());
+           ++i) {
+        size_t agentIdx = indices[i];
+        city.agents[agentIdx].setState(c.claimId, SEDPNRState::PROPAGATING);
+
+        if (claims.back().originAgentId < 0) {
           claims.back().originAgentId = static_cast<int>(agentIdx);
         }
       }
@@ -181,14 +215,17 @@ public:
     for (const auto &claim : claims) {
       for (const auto &agent : city.agents) {
         SEDPNRState state = agent.getState(claim.claimId);
-        // Only record if NOT susceptible to save space, or record everything
-        // for initial map
-        if (state != SEDPNRState::SUSCEPTIBLE || currentTime == 0) {
+        // Record if not susceptible OR if configured to record full snapshot
+        if (Configuration::instance().full_spatial_snapshot ||
+            state != SEDPNRState::SUSCEPTIBLE || currentTime == 0) {
           spatialFile << currentTime << "," << agent.id << ","
                       << agent.homeTownId << "," << agent.schoolLocationId
                       << "," << agent.religiousLocationId << ","
-                      << claim.claimId << "," << static_cast<int>(state) << ","
-                      << (claim.isMisinformation ? 1 : 0) << "\n";
+                      << agent.workplaceLocationId << "," << claim.claimId
+                      << "," << static_cast<int>(state) << ","
+                      << (claim.isMisinformation ? 1 : 0) << ","
+                      << static_cast<int>(agent.ethnicity) << ","
+                      << static_cast<int>(agent.denomination) << "\n";
         }
       }
     }
@@ -272,6 +309,15 @@ public:
     }
   }
 
+  // Get latest state counts for a claim
+  StateCounts getLatestStateCounts(int claimId) const {
+    auto it = stateHistory.find(claimId);
+    if (it != stateHistory.end() && !it->second.empty()) {
+      return it->second.back();
+    }
+    return StateCounts();
+  }
+
 private:
   // ========================================================================
   // STATE TRANSITION PROCESSORS
@@ -331,7 +377,8 @@ private:
                               std::uniform_real_distribution<double> &dist) {
     auto &cfg = Configuration::instance();
     if (agent.getTimeInState(claim.claimId) >= 0) {
-      // Calculate adoption threshold based on claim type and agent credibility
+      // Calculate adoption threshold based on claim type and agent
+      // credibility
       double threshold =
           claim.isMisinformation ? cfg.misinfo_threshold : cfg.truth_threshold;
 

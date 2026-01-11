@@ -3,9 +3,11 @@
 // Main Entry Point
 // ============================================================================
 
-#include "Simulation.h"
+#include "../include/Simulation.h"
+#include <iomanip>
 #include <iostream>
 #include <string>
+#include <vector>
 
 // Note: Configuration is now managed by the Configuration singleton
 
@@ -53,30 +55,72 @@ int main(int argc, char *argv[]) {
 
   // Add a truth claim
   Claim truth = Claim::createTruth(0, "Factual_Claim");
-  sim.addClaim(truth, 5); // Default 5 propagators
+  sim.addClaim(truth, 10); // 10 initial propagators
   std::cout << "  Added: " << truth.name
-            << " (Truth) with 5 initial propagators" << std::endl;
+            << " (Truth) with 10 initial propagators" << std::endl;
 
-  // Add misinformation claims
+  // Add misinformation claims (5 propagators per district)
   Claim misinfo1 = Claim::createMisinformation(1, "Misinfo_Claim_1");
-  sim.addClaim(misinfo1, 5);
+  sim.addClaimPerDistrict(misinfo1, 5);
   std::cout << "  Added: " << misinfo1.name
-            << " (Misinformation) with 5 initial propagators" << std::endl;
+            << " (Misinformation) with 5 propagators per district" << std::endl;
 
   Claim misinfo2 = Claim::createMisinformation(2, "Misinfo_Claim_2");
-  sim.addClaim(misinfo2, 5);
+  sim.addClaimPerDistrict(misinfo2, 5);
   std::cout << "  Added: " << misinfo2.name
-            << " (Misinformation) with 5 initial propagators" << std::endl;
+            << " (Misinformation) with 5 propagators per district" << std::endl;
 
   // Run simulation
-  std::cout << "\nRunning simulation..." << std::endl;
-  sim.run(cfg.timesteps);
+  std::cout << "\nRunning controllable simulation..." << std::endl;
+  std::cout
+      << "Controls: [Enter] to step, [R] to run continuously, [P] to pause"
+      << std::endl;
+
+  bool continuous = true; // Auto-run to completion
+  for (int t = 0; t < cfg.timesteps; ++t) {
+    sim.step();
+
+    // Print header every 20 steps or at start
+    if (t % 20 == 0) {
+      std::cout << "\n"
+                << std::setw(6) << "Step" << " | " << std::setw(15) << "Claim"
+                << " | " << std::setw(4) << "S" << " | " << std::setw(4) << "E"
+                << " | " << std::setw(4) << "D" << " | " << std::setw(4) << "P"
+                << " | " << std::setw(4) << "N" << " | " << std::setw(4) << "R"
+                << std::endl;
+      std::cout << std::string(65, '-') << std::endl;
+    }
+
+    // Print stats for each claim
+    for (const auto &claim : sim.claims) {
+      StateCounts sc = sim.getLatestStateCounts(claim.claimId);
+      std::cout << std::setw(6) << t << " | " << std::setw(15)
+                << claim.name.substr(0, 15) << " | " << std::setw(4)
+                << sc.susceptible << " | " << std::setw(4) << sc.exposed
+                << " | " << std::setw(4) << sc.doubtful << " | " << std::setw(4)
+                << sc.propagating << " | " << std::setw(4) << sc.notSpreading
+                << " | " << std::setw(4) << sc.recovered << std::endl;
+    }
+
+    if (!continuous) {
+      std::string input;
+      std::getline(std::cin, input);
+      if (input == "r" || input == "R") {
+        continuous = true;
+      }
+    } else {
+      // Check for pause if possible (non-blocking char read is complex in
+      // standard C++, we'll just run to end if 'R' is pressed, or use a small
+      // sleep)
+      // For now, once 'R' is pressed, it runs to completion but shows stats.
+    }
+  }
 
   // Output results
   std::cout << "\nWriting results..." << std::endl;
   sim.outputResults("output/simulation_results.csv");
 
-  // Print summary
+  // Print final summary
   sim.outputSummary();
 
   std::cout << "\n=================================================="

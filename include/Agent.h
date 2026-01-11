@@ -1,5 +1,5 @@
 #pragma once
-
+#include "Demographics.h"
 #include "SEDPNR.h"
 #include <cmath>
 #include <map>
@@ -11,31 +11,7 @@
 
 // Note: Configurable parameters are now managed by Configuration::instance()
 
-// ============================================================================
-// ETHNIC GROUP ENUMERATION
-// ============================================================================
-
-enum class EthnicGroup {
-  GROUP_A = 0,
-  GROUP_B,
-  GROUP_C,
-  GROUP_D,
-  GROUP_E,
-  NUM_GROUPS
-};
-
-// ============================================================================
-// AGE GROUP ENUMERATION
-// ============================================================================
-
-enum class AgeGroup {
-  CHILD = 0,   // 0-12
-  TEEN,        // 13-19
-  YOUNG_ADULT, // 20-35
-  ADULT,       // 36-55
-  SENIOR,      // 56+
-  NUM_GROUPS
-};
+// Agent class follows...
 
 // ============================================================================
 // AGENT CLASS
@@ -52,7 +28,9 @@ public:
   int homeTownId;
   int schoolLocationId; // -1 if not applicable
   int religiousLocationId;
+  int workplaceLocationId; // -1 if not applicable
   EthnicGroup ethnicity;
+  ReligiousDenomination denomination;
 
   // Derived values
   double credibilityValue; // Calculated from age + education
@@ -68,18 +46,20 @@ public:
 
   // Constructor
   Agent(int agentId, int agentAge, int eduLevel, int town, int school,
-        int religious, EthnicGroup ethnic)
+        int religious, int work, EthnicGroup ethnic,
+        ReligiousDenomination denom)
       : id(agentId), age(agentAge), educationLevel(eduLevel), homeTownId(town),
         schoolLocationId(school), religiousLocationId(religious),
-        ethnicity(ethnic) {
+        workplaceLocationId(work), ethnicity(ethnic), denomination(denom) {
     credibilityValue = calculateCredibility();
   }
 
   // Default constructor
   Agent()
       : id(-1), age(0), educationLevel(0), homeTownId(-1), schoolLocationId(-1),
-        religiousLocationId(-1), ethnicity(EthnicGroup::GROUP_A),
-        credibilityValue(0) {}
+        religiousLocationId(-1), workplaceLocationId(-1),
+        ethnicity(EthnicGroup::WHITE),
+        denomination(ReligiousDenomination::NONE), credibilityValue(0) {}
 
   // ========================================================================
   // CREDIBILITY CALCULATION
@@ -141,6 +121,12 @@ public:
     // Second highest: same religious establishment
     if (religiousLocationId == other.religiousLocationId) {
       prob += cfg.same_religious_weight;
+    }
+
+    // Workplace-based interaction
+    if (workplaceLocationId != -1 &&
+        workplaceLocationId == other.workplaceLocationId) {
+      prob += cfg.same_workplace_weight;
     }
 
     // Baseline: same town
