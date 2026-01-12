@@ -403,15 +403,16 @@ private:
       double threshold =
           claim.isMisinformation ? cfg.misinfo_threshold : cfg.truth_threshold;
 
-      // Credibility affects rejection probability
-      double rejectionBonus =
-          agent.credibilityValue * cfg.credibility_rejection_weight;
+      // Credibility affects belief probability (Multiplier based on age)
+      // Range: ~0.5 to ~1.5 based on optimal age proximity
+      double beliefMultiplier = 0.5 + agent.credibilityValue;
 
       double roll = dist(rng);
 
       // Adjusted probabilities
-      double probReject = cfg.prob_d_to_r + rejectionBonus;
-      double probPropagate = cfg.prob_d_to_p * (1.0 - threshold);
+      double probReject = cfg.prob_d_to_r;
+      double probPropagate =
+          (cfg.prob_d_to_p * (1.0 - threshold)) * beliefMultiplier;
       double probNotSpread = cfg.prob_d_to_n;
 
       // REQUIREMENT: Validating social proof for adoption (P or N)
@@ -465,9 +466,29 @@ private:
 
   // Process not-spreading agent (N -> R)
   SEDPNRState
-  processNotSpreading(Agent & /*agent*/, const Claim &claim,
+  processNotSpreading(Agent &agent, const Claim &claim,
                       std::uniform_real_distribution<double> &dist) {
     auto &cfg = Configuration::instance();
+
+    // Symmetric Defense Mechanism:
+    // If I hold a view (Truth or Misinfo) but am Not Spreading, and I encounter
+    // someone spreading the OPPOSITE view, I start propagating my view again.
+    // Reaction: Dormant Believer -> Active Spreader
+    for (int connId : agent.connections) {
+      Agent &neighbor = city.getAgent(connId);
+      for (auto const &[neighborCid, neighborState] : neighbor.claimStates) {
+        if (neighborState == SEDPNRState::PROPAGATING) {
+          // Determine if neighbor's claim is "Opposite"
+          // We assume ID 0 is Truth, IDs > 0 are Misinfo.
+          bool neighborIsMisinfo = (neighborCid != 0);
+
+          // If types differ (Truth vs Misinfo), trigger defense
+          if (claim.isMisinformation != neighborIsMisinfo) {
+            return SEDPNRState::PROPAGATING;
+          }
+        }
+      }
+    }
 
     // Truth claims should not be recovered from
     double probNtoR = claim.isMisinformation ? cfg.prob_n_to_r : 0.0;

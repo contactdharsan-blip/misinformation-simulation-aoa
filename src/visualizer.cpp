@@ -354,19 +354,25 @@ int main() {
     float availableSimHeight = (float)WINDOW_SIZE - simAreaYOffset;
 
     // Background Zones
-    {
+    if (currentView != CHART_VIEW) {
       if (townReligious.count(currentDistrictId)) {
         for (int rid : townReligious[currentDistrictId]) {
           sf::Vector2f pos = getLocationCoords(rid, 34, WINDOW_SIZE);
           pos.y = simAreaYOffset +
                   (pos.y / (float)WINDOW_SIZE) * availableSimHeight;
-          float radius = 40.0f;
+
+          // Variable large radius for ~70% total coverage
+          std::mt19937 rRng(rid * 111 + 555);
+          std::uniform_real_distribution<float> rDist(80.0f, 130.0f);
+          float radius = rDist(rRng);
+
           sf::CircleShape zone(radius);
           zone.setOrigin({radius, radius});
           zone.setPosition(pos);
-          zone.setFillColor(sf::Color(168, 85, 247, 50));
+          zone.setFillColor(sf::Color(
+              168, 85, 247, 40)); // slightly more transparent for overlap
           zone.setOutlineThickness(2.0f);
-          zone.setOutlineColor(sf::Color(168, 85, 247, 200));
+          zone.setOutlineColor(sf::Color(168, 85, 247, 180));
           window.draw(zone);
         }
       }
@@ -375,14 +381,20 @@ int main() {
           sf::Vector2f pos = getLocationCoords(wid, 56, WINDOW_SIZE);
           pos.y = simAreaYOffset +
                   (pos.y / (float)WINDOW_SIZE) * availableSimHeight;
+
           sf::ConvexShape zone;
           zone.setPointCount(6);
-          float r = 30.0f;
+
+          // Variable large size
+          std::mt19937 wRng(wid * 222 + 888);
+          std::uniform_real_distribution<float> wDist(80.0f, 120.0f);
+          float r = wDist(wRng);
+
           for (int i = 0; i < 6; ++i)
             zone.setPoint(
                 i, {r * (float)cos(i * 1.047f), r * (float)sin(i * 1.047f)});
           zone.setPosition(pos);
-          zone.setFillColor(sf::Color(245, 158, 11, 40));
+          zone.setFillColor(sf::Color(245, 158, 11, 30)); // overlapping amber
           zone.setOutlineThickness(2.0f);
           zone.setOutlineColor(sf::Color(245, 158, 11, 150));
           window.draw(zone);
@@ -438,11 +450,11 @@ int main() {
         }
 
         // Draw Lines for each claim
-        // Factual = Blue (0), Misinfo = Red (1+)
-        std::map<int, sf::Color> claimColors = {
-            {0, sf::Color::Blue}, {1, sf::Color::Red}, {2, sf::Color::Magenta}};
+        // Factual = Blue (0), Misinfo = Red (1)
+        std::map<int, sf::Color> claimColors = {{0, sf::Color::Blue},
+                                                {1, sf::Color::Red}};
 
-        for (int cid = 0; cid < 3; ++cid) {
+        for (int cid = 0; cid < 2; ++cid) {
           sf::Color col =
               claimColors.count(cid) ? claimColors[cid] : sf::Color::White;
           std::vector<sf::Vertex> line;
@@ -499,19 +511,21 @@ int main() {
         float tx = 0.5f * homePos.x, ty = 0.5f * homePos.y;
         int hubs = (hasS ? 1 : 0) + (hasR ? 1 : 0) + (hasW ? 1 : 0);
         if (hubs > 0) {
-          float hW = 0.5f / hubs;
-          if (hasS) {
-            tx += hW * sPos.x;
-            ty += hW * sPos.y;
-          }
-          if (hasR) {
-            tx += hW * rPos.x;
-            ty += hW * rPos.y;
-          }
-          if (hasW) {
-            tx += hW * wPos.x;
-            ty += hW * wPos.y;
-          }
+          // Choose ONE hub deterministically based on agent ID
+          std::vector<sf::Vector2f> availableHubs;
+          if (hasS)
+            availableHubs.push_back(sPos);
+          if (hasR)
+            availableHubs.push_back(rPos);
+          if (hasW)
+            availableHubs.push_back(wPos);
+
+          int chosenIndex = s.agentId % availableHubs.size();
+          sf::Vector2f chosenHub = availableHubs[chosenIndex];
+
+          // 50% Home, 50% Selected Hub
+          tx += 0.5f * chosenHub.x;
+          ty += 0.5f * chosenHub.y;
         } else {
           tx = homePos.x;
           ty = homePos.y;
@@ -640,7 +654,6 @@ int main() {
       if (currentView == CHART_VIEW) {
         drawLegendItem("Factual Claim (Truth)", sf::Color::Blue, legendY + 30);
         drawLegendItem("Misinfo Claim 1", sf::Color::Red, legendY + 50);
-        drawLegendItem("Misinfo Claim 2", sf::Color::Magenta, legendY + 70);
       } else {
         drawLegendItem("Misinfo (Propagating)", sf::Color::Red, legendY + 30);
         drawLegendItem("Truth (Propagating)", sf::Color::Blue, legendY + 50);

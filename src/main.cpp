@@ -65,11 +65,6 @@ int main(int argc, char *argv[]) {
   std::cout << "  Added: " << misinfo1.name
             << " (Misinformation) with 5 propagators per district" << std::endl;
 
-  Claim misinfo2 = Claim::createMisinformation(2, "Misinfo_Claim_2");
-  sim.addClaimPerDistrict(misinfo2, 5);
-  std::cout << "  Added: " << misinfo2.name
-            << " (Misinformation) with 5 propagators per district" << std::endl;
-
   // Run simulation
   std::cout << "\nRunning controllable simulation..." << std::endl;
   std::cout
