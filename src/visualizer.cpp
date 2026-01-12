@@ -107,7 +107,7 @@ sf::Vector2f getSchoolGridCoords(int schoolId, int totalSchools,
   return {c * cellW + cellW * 0.5f, r * cellH + cellH * 0.5f};
 }
 
-enum ViewMode { GRID_VIEW, DISTRICT_VIEW };
+enum ViewMode { DISTRICT_VIEW, CHART_VIEW };
 
 int main() {
   loadConfig();
@@ -127,6 +127,8 @@ int main() {
   std::map<int, std::vector<int>> townSchools;
   std::map<int, std::vector<int>> townReligious;
   std::map<int, std::vector<int>> townWorkplaces;
+  std::map<int, std::map<int, int>>
+      overallTrends; // [time][claimId] -> Adoption count
   int maxTime = 0;
 
   if (file.is_open()) {
@@ -185,6 +187,11 @@ int main() {
           townWorkplaces[s.townId].push_back(s.workplaceId);
       }
       timeline[time].push_back(s);
+
+      // Track trends (Adoption = P, N, or R)
+      if (s.state >= 3) {
+        overallTrends[time][s.claimId]++;
+      }
     }
   }
 
@@ -279,14 +286,20 @@ int main() {
           float mouseX = (float)mouseButtonPressed->position.x;
           float mouseY = (float)mouseButtonPressed->position.y;
           if (mouseY >= 0 && mouseY <= 40 && mouseX < 800) {
-            float tabWidth = 800.0f / 3.0f;
+            float tabWidth = 800.0f / 4.0f;
             int tabIndex = (int)(mouseX / tabWidth);
-            if (tabIndex == 0)
+            if (tabIndex == 0) {
               selectedClaim = -1;
-            else if (tabIndex == 1)
+              currentView = DISTRICT_VIEW;
+            } else if (tabIndex == 1) {
               selectedClaim = 0;
-            else if (tabIndex == 2)
+              currentView = DISTRICT_VIEW;
+            } else if (tabIndex == 2) {
               selectedClaim = 1;
+              currentView = DISTRICT_VIEW;
+            } else if (tabIndex == 3) {
+              currentView = CHART_VIEW;
+            }
           }
         }
       }
@@ -307,11 +320,17 @@ int main() {
     window.clear(sf::Color(15, 15, 15));
 
     float tabAreaHeight = 40.0f;
-    float tabWidth = (float)WINDOW_SIZE / 3.0f;
-    for (int i = 0; i < 3; ++i) {
-      bool isActive = (i == 0 && selectedClaim == -1) ||
-                      (i == 1 && selectedClaim == 0) ||
-                      (i == 2 && selectedClaim >= 1);
+    float tabWidth = (float)WINDOW_SIZE / 4.0f;
+    for (int i = 0; i < 4; ++i) {
+      bool isActive = false;
+      if (currentView == CHART_VIEW) {
+        isActive = (i == 3);
+      } else {
+        isActive = (i == 0 && selectedClaim == -1) ||
+                   (i == 1 && selectedClaim == 0) ||
+                   (i == 2 && selectedClaim >= 1);
+      }
+
       sf::RectangleShape tab(sf::Vector2f({tabWidth - 2, tabAreaHeight - 4}));
       tab.setPosition({i * tabWidth + 1, 2});
       tab.setFillColor(isActive ? sf::Color(60, 60, 60)
@@ -320,10 +339,11 @@ int main() {
       if (fontLoaded) {
         std::string label =
             (i == 0 ? "OVERVIEW"
-                    : (i == 1 ? "TRUTH SPREAD" : "MISINFO SPREAD"));
+                    : (i == 1 ? "TRUTH" : (i == 2 ? "MISINFO" : "TRENDS")));
         sf::Text txt(font, label, 12);
-        txt.setPosition(
-            {i * tabWidth + tabWidth / 2.0f - 40, tabAreaHeight / 2.0f - 6});
+        sf::FloatRect bounds = txt.getLocalBounds();
+        txt.setOrigin({bounds.size.x / 2.0f, bounds.size.y / 2.0f});
+        txt.setPosition({i * tabWidth + tabWidth / 2.0f, tabAreaHeight / 2.0f});
         txt.setFillColor(isActive ? sf::Color::White
                                   : sf::Color(150, 150, 150));
         window.draw(txt);
@@ -389,62 +409,251 @@ int main() {
         toDraw.push_back(s);
     }
 
-    for (auto &s : toDraw) {
-      if (s.townId != currentDistrictId)
-        continue;
-      sf::Vector2f homePos = getAgentHomePos(s.agentId, WINDOW_SIZE);
-      sf::Vector2f sPos = {0, 0}, rPos = {0, 0}, wPos = {0, 0};
-      bool hasS = (s.schoolId != -1), hasR = (s.religiousId != -1),
-           hasW = (s.workplaceId != -1);
-      if (hasS) {
-        auto &v = townSchools[s.townId];
-        int sIdx = 0;
-        for (size_t k = 0; k < v.size(); ++k)
-          if (v[k] == s.schoolId) {
-            sIdx = k;
-            break;
+    if (currentView == CHART_VIEW) {
+      // Draw Adoption Trends Graph
+      float graphX = 50.0f;
+      float graphY = simAreaYOffset + 50.0f;
+      float graphW = WINDOW_SIZE - 100.0f;
+      float graphH = availableSimHeight - 120.0f;
+
+      // Draw Axes
+      sf::Vertex axes[] = {
+          sf::Vertex{sf::Vector2f(graphX, graphY), sf::Color(100, 100, 100)},
+          sf::Vertex{sf::Vector2f(graphX, graphY + graphH),
+                     sf::Color(100, 100, 100)},
+          sf::Vertex{sf::Vector2f(graphX, graphY + graphH),
+                     sf::Color(100, 100, 100)},
+          sf::Vertex{sf::Vector2f(graphX + graphW, graphY + graphH),
+                     sf::Color(100, 100, 100)}};
+      window.draw(axes, 4, sf::PrimitiveType::Lines);
+
+      if (maxTime > 0) {
+        // Find max adoption for scaling
+        int maxAdopted = 100; // Min scale
+        for (auto const &[t, claims] : overallTrends) {
+          for (auto const &[cid, count] : claims) {
+            if (count > maxAdopted)
+              maxAdopted = count;
           }
-        sPos = getSchoolGridCoords(sIdx, v.size(), WINDOW_SIZE);
-      }
-      if (hasR)
-        rPos = getLocationCoords(s.religiousId, 34, WINDOW_SIZE);
-      if (hasW)
-        wPos = getLocationCoords(s.workplaceId, 56, WINDOW_SIZE);
+        }
 
-      float tx = 0.5f * homePos.x, ty = 0.5f * homePos.y;
-      int hubs = (hasS ? 1 : 0) + (hasR ? 1 : 0) + (hasW ? 1 : 0);
-      if (hubs > 0) {
-        float hW = 0.5f / hubs;
+        // Draw Lines for each claim
+        // Factual = Blue (0), Misinfo = Red (1+)
+        std::map<int, sf::Color> claimColors = {
+            {0, sf::Color::Blue}, {1, sf::Color::Red}, {2, sf::Color::Magenta}};
+
+        for (int cid = 0; cid < 3; ++cid) {
+          sf::Color col =
+              claimColors.count(cid) ? claimColors[cid] : sf::Color::White;
+          std::vector<sf::Vertex> line;
+          for (int t = 0; t <= currentTime; ++t) {
+            int adopted = overallTrends.count(t) && overallTrends[t].count(cid)
+                              ? overallTrends[t][cid]
+                              : 0;
+            float px = graphX + ((float)t / maxTime) * graphW;
+            float py = graphY + graphH - ((float)adopted / maxAdopted) * graphH;
+            line.push_back(sf::Vertex{sf::Vector2f(px, py), col});
+          }
+          if (line.size() > 1) {
+            window.draw(line.data(), line.size(), sf::PrimitiveType::LineStrip);
+          }
+        }
+      }
+
+      if (fontLoaded) {
+        sf::Text xLabel(font, "Simulation Time (Steps)", 14);
+        xLabel.setPosition({graphX + graphW / 2.0f - 80, graphY + graphH + 20});
+        xLabel.setFillColor(sf::Color(150, 150, 150));
+        window.draw(xLabel);
+
+        sf::Text yLabel(font, "Adoption (P+N+R)", 14);
+        yLabel.setRotation(sf::degrees(-90.0f));
+        yLabel.setPosition({graphX - 35, graphY + graphH / 2.0f + 60});
+        yLabel.setFillColor(sf::Color(150, 150, 150));
+        window.draw(yLabel);
+      }
+    } else {
+      // Draw Agents
+      for (auto &s : toDraw) {
+        if (s.townId != currentDistrictId)
+          continue;
+        sf::Vector2f homePos = getAgentHomePos(s.agentId, WINDOW_SIZE);
+        sf::Vector2f sPos = {0, 0}, rPos = {0, 0}, wPos = {0, 0};
+        bool hasS = (s.schoolId != -1), hasR = (s.religiousId != -1),
+             hasW = (s.workplaceId != -1);
         if (hasS) {
-          tx += hW * sPos.x;
-          ty += hW * sPos.y;
+          auto &v = townSchools[s.townId];
+          int sIdx = 0;
+          for (size_t k = 0; k < v.size(); ++k)
+            if (v[k] == s.schoolId) {
+              sIdx = k;
+              break;
+            }
+          sPos = getSchoolGridCoords(sIdx, v.size(), WINDOW_SIZE);
         }
-        if (hasR) {
-          tx += hW * rPos.x;
-          ty += hW * rPos.y;
+        if (hasR)
+          rPos = getLocationCoords(s.religiousId, 34, WINDOW_SIZE);
+        if (hasW)
+          wPos = getLocationCoords(s.workplaceId, 56, WINDOW_SIZE);
+
+        float tx = 0.5f * homePos.x, ty = 0.5f * homePos.y;
+        int hubs = (hasS ? 1 : 0) + (hasR ? 1 : 0) + (hasW ? 1 : 0);
+        if (hubs > 0) {
+          float hW = 0.5f / hubs;
+          if (hasS) {
+            tx += hW * sPos.x;
+            ty += hW * sPos.y;
+          }
+          if (hasR) {
+            tx += hW * rPos.x;
+            ty += hW * rPos.y;
+          }
+          if (hasW) {
+            tx += hW * wPos.x;
+            ty += hW * wPos.y;
+          }
+        } else {
+          tx = homePos.x;
+          ty = homePos.y;
         }
-        if (hasW) {
-          tx += hW * wPos.x;
-          ty += hW * wPos.y;
+
+        ty = simAreaYOffset + ty * (availableSimHeight / (float)WINDOW_SIZE);
+        auto offset = getAgentOffset(s.agentId);
+        sf::CircleShape agent(1.5f);
+        agent.setPosition({tx + offset.x, ty + offset.y});
+        sf::Color color(50, 50, 50, 180);
+        if (s.state == 3)
+          color = s.isMisinfo ? sf::Color::Red : sf::Color::Blue;
+        else if (s.state == 1 || s.state == 2)
+          color = sf::Color::Yellow;
+        else if (s.state >= 4)
+          color = sf::Color::Green;
+        agent.setFillColor(color);
+        window.draw(agent);
+      }
+    }
+
+    // UI Panel (Side Analytics & Legend)
+    sf::RectangleShape panel(
+        sf::Vector2f({(float)UI_WIDTH, (float)WINDOW_SIZE}));
+    panel.setPosition({(float)WINDOW_SIZE, 0});
+    panel.setFillColor(sf::Color(20, 20, 20));
+    panel.setOutlineThickness(1);
+    panel.setOutlineColor(sf::Color(40, 40, 40));
+    window.draw(panel);
+
+    if (fontLoaded) {
+      sf::Text title(font, "SIMULATION ANALYTICS", 18);
+      title.setPosition({(float)WINDOW_SIZE + 20, 30});
+      title.setFillColor(sf::Color::White);
+      window.draw(title);
+
+      auto drawStat = [&](std::string labelStr, std::string valStr, float y,
+                          sf::Color valColor) {
+        sf::Text lb(font, labelStr, 14);
+        lb.setPosition({(float)WINDOW_SIZE + 20, y});
+        lb.setFillColor(sf::Color(120, 120, 120));
+        window.draw(lb);
+
+        sf::Text val(font, valStr, 32);
+        val.setPosition({(float)WINDOW_SIZE + 20, y + 25});
+        val.setFillColor(valColor);
+        window.draw(val);
+      };
+
+      StateCounts activeSC;
+      if (selectedClaim == -1) {
+        for (auto const &[cid, towns] : persistentTownStats) {
+          for (auto const &[tid, tc] : towns) {
+            activeSC.propagating += tc.propagating;
+            activeSC.recovered += tc.recovered;
+            activeSC.susceptible += tc.susceptible;
+            activeSC.exposed += tc.exposed;
+            activeSC.doubtful += tc.doubtful;
+            activeSC.notSpreading += tc.notSpreading;
+          }
         }
-      } else {
-        tx = homePos.x;
-        ty = homePos.y;
+      } else if (persistentTownStats.count(selectedClaim)) {
+        for (auto const &[tid, tc] : persistentTownStats[selectedClaim]) {
+          activeSC.propagating += tc.propagating;
+          activeSC.recovered += tc.recovered;
+          activeSC.susceptible += tc.susceptible;
+          activeSC.exposed += tc.exposed;
+          activeSC.doubtful += tc.doubtful;
+          activeSC.notSpreading += tc.notSpreading;
+        }
       }
 
-      ty = simAreaYOffset + ty * (availableSimHeight / (float)WINDOW_SIZE);
-      auto offset = getAgentOffset(s.agentId);
-      sf::CircleShape agent(1.5f);
-      agent.setPosition({tx + offset.x, ty + offset.y});
-      sf::Color color(50, 50, 50, 180);
-      if (s.state == 3)
-        color = s.isMisinfo ? sf::Color::Red : sf::Color::Blue;
-      else if (s.state == 1 || s.state == 2)
-        color = sf::Color::Yellow;
-      else if (s.state >= 4)
-        color = sf::Color::Green;
-      agent.setFillColor(color);
-      window.draw(agent);
+      int propagating = activeSC.propagating;
+      int adopted = activeSC.notSpreading + activeSC.recovered;
+      int totalPop = activeSC.susceptible + activeSC.exposed +
+                     activeSC.doubtful + activeSC.propagating +
+                     activeSC.notSpreading + activeSC.recovered;
+
+      drawStat("ACTIVE PROPAGATORS", std::to_string(propagating), 80,
+               sf::Color(239, 68, 68));
+      drawStat("ADOPTED / NEUTRAL", std::to_string(adopted), 160,
+               sf::Color(16, 185, 129));
+
+      float reachP =
+          (totalPop > 0) ? (float)adopted / (float)totalPop * 100.0f : 0.0f;
+      char reachBuf[32];
+      std::snprintf(reachBuf, sizeof(reachBuf), "%.1f%%", reachP);
+      drawStat("TOTAL REACH", reachBuf, 240, sf::Color(79, 70, 229));
+
+      sf::Text timeLabel(font,
+                         "Time: " + std::to_string(currentTime) + " / " +
+                             std::to_string(maxTime),
+                         16);
+      timeLabel.setPosition({(float)WINDOW_SIZE + 20, 330});
+      timeLabel.setFillColor(sf::Color::White);
+      window.draw(timeLabel);
+
+      // --- Legend Section ---
+      float legendY = 400.0f;
+      sf::Text legendTitle(font, "LEGEND", 16);
+      legendTitle.setPosition({(float)WINDOW_SIZE + 20, legendY});
+      legendTitle.setFillColor(sf::Color(150, 150, 150));
+      window.draw(legendTitle);
+
+      auto drawLegendItem = [&](std::string label, sf::Color color, float y,
+                                bool circle = true) {
+        if (circle) {
+          sf::CircleShape dot(5.0f);
+          dot.setPosition({(float)WINDOW_SIZE + 20, y + 5});
+          dot.setFillColor(color);
+          window.draw(dot);
+        } else {
+          sf::RectangleShape box(sf::Vector2f({10.0f, 10.0f}));
+          box.setPosition({(float)WINDOW_SIZE + 20, y + 5});
+          box.setFillColor(sf::Color::Transparent);
+          box.setOutlineThickness(1);
+          box.setOutlineColor(color);
+          window.draw(box);
+        }
+        sf::Text txt(font, label, 12);
+        txt.setPosition({(float)WINDOW_SIZE + 40, y + 2});
+        txt.setFillColor(sf::Color(180, 180, 180));
+        window.draw(txt);
+      };
+
+      drawLegendItem("Misinfo (Propagating)", sf::Color::Red, legendY + 30);
+      drawLegendItem("Truth (Propagating)", sf::Color::Blue, legendY + 50);
+      drawLegendItem("Exposed / Doubtful", sf::Color::Yellow, legendY + 70);
+      drawLegendItem("Adopted / Neutral", sf::Color::Green, legendY + 90);
+      drawLegendItem("Susceptible", sf::Color(50, 50, 50), legendY + 110);
+      drawLegendItem("Religious Zone", sf::Color(168, 85, 247), legendY + 140,
+                     false);
+      drawLegendItem("Workplace Zone", sf::Color(245, 158, 11), legendY + 160,
+                     false);
+
+      sf::Text help(font,
+                    "Space: Play/Pause | R: Reset\nArrows: Seek | "
+                    "Tabs: Toggle Claim\nClick tabs for Truth/Misinfo focus",
+                    12);
+      help.setPosition({(float)WINDOW_SIZE + 20, 740});
+      help.setFillColor(sf::Color(100, 100, 100));
+      window.draw(help);
     }
 
     window.display();
