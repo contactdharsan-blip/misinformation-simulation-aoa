@@ -425,13 +425,16 @@ private:
         }
       }
 
-      if (roll < probReject) {
+      // Truth claims should not be rejected/recovered from
+      double actualProbReject = claim.isMisinformation ? probReject : 0.0;
+
+      if (roll < actualProbReject) {
         return SEDPNRState::RECOVERED;
       } else if (hasReinforcement) {
         // Only allow adoption if reinforced
-        if (roll < probReject + probPropagate) {
+        if (roll < actualProbReject + probPropagate) {
           return SEDPNRState::PROPAGATING;
-        } else if (roll < probReject + probPropagate + probNotSpread) {
+        } else if (roll < actualProbReject + probPropagate + probNotSpread) {
           return SEDPNRState::NOT_SPREADING;
         }
       }
@@ -447,9 +450,12 @@ private:
     if (agent.getTimeInState(claim.claimId) >= 0) {
       double roll = dist(rng);
 
-      if (roll < cfg.prob_p_to_r) {
+      // Truth claims should not be recovered from
+      double probPtoR = claim.isMisinformation ? cfg.prob_p_to_r : 0.0;
+
+      if (roll < probPtoR) {
         return SEDPNRState::RECOVERED;
-      } else if (roll < cfg.prob_p_to_r + cfg.prob_p_to_n) {
+      } else if (roll < probPtoR + cfg.prob_p_to_n) {
         return SEDPNRState::NOT_SPREADING;
       }
     }
@@ -459,10 +465,14 @@ private:
 
   // Process not-spreading agent (N -> R)
   SEDPNRState
-  processNotSpreading(Agent & /*agent*/, const Claim & /*claim*/,
+  processNotSpreading(Agent & /*agent*/, const Claim &claim,
                       std::uniform_real_distribution<double> &dist) {
     auto &cfg = Configuration::instance();
-    if (dist(rng) < cfg.prob_n_to_r) {
+
+    // Truth claims should not be recovered from
+    double probNtoR = claim.isMisinformation ? cfg.prob_n_to_r : 0.0;
+
+    if (dist(rng) < probNtoR) {
       return SEDPNRState::RECOVERED;
     }
 
