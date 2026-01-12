@@ -637,15 +637,21 @@ int main() {
         window.draw(txt);
       };
 
-      drawLegendItem("Misinfo (Propagating)", sf::Color::Red, legendY + 30);
-      drawLegendItem("Truth (Propagating)", sf::Color::Blue, legendY + 50);
-      drawLegendItem("Exposed / Doubtful", sf::Color::Yellow, legendY + 70);
-      drawLegendItem("Adopted / Neutral", sf::Color::Green, legendY + 90);
-      drawLegendItem("Susceptible", sf::Color(50, 50, 50), legendY + 110);
-      drawLegendItem("Religious Zone", sf::Color(168, 85, 247), legendY + 140,
-                     false);
-      drawLegendItem("Workplace Zone", sf::Color(245, 158, 11), legendY + 160,
-                     false);
+      if (currentView == CHART_VIEW) {
+        drawLegendItem("Factual Claim (Truth)", sf::Color::Blue, legendY + 30);
+        drawLegendItem("Misinfo Claim 1", sf::Color::Red, legendY + 50);
+        drawLegendItem("Misinfo Claim 2", sf::Color::Magenta, legendY + 70);
+      } else {
+        drawLegendItem("Misinfo (Propagating)", sf::Color::Red, legendY + 30);
+        drawLegendItem("Truth (Propagating)", sf::Color::Blue, legendY + 50);
+        drawLegendItem("Exposed / Doubtful", sf::Color::Yellow, legendY + 70);
+        drawLegendItem("Adopted / Neutral", sf::Color::Green, legendY + 90);
+        drawLegendItem("Susceptible", sf::Color(50, 50, 50), legendY + 110);
+        drawLegendItem("Religious Zone", sf::Color(168, 85, 247), legendY + 140,
+                       false);
+        drawLegendItem("Workplace Zone", sf::Color(245, 158, 11), legendY + 160,
+                       false);
+      }
 
       sf::Text help(font,
                     "Space: Play/Pause | R: Reset\nArrows: Seek | "
