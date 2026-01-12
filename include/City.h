@@ -81,13 +81,11 @@ public:
       // Assign to a town (random distribution)
       int townId = townDist(rng);
 
-      // Assign to a school (if age appropriate)
+      // Assign to a school (All people are assigned as requested)
       int schoolId = -1;
-      if (age >= 5 && age <= 22) { // School age
-        Location *school = towns[townId].getRandomSchool(rng);
-        if (school && school->assignAgent(i)) {
-          schoolId = school->id;
-        }
+      Location *school = towns[townId].getRandomSchool(rng);
+      if (school && school->assignAgent(i)) {
+        schoolId = school->id;
       }
 
       // Assign to a religious establishment (probabilistic matching

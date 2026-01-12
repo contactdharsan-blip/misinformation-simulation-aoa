@@ -18,7 +18,7 @@ The population generation is calibrated to current Phoenix, AZ demographic data:
 - **Religion**: Diverse landscape with significant Catholic, Evangelical, and Unaffiliated segments.
 
 ## Key Mechanics
-1. **Identity-Based Interaction**: Exposure is weighted by demographic similarity. Agents are more likely to interact with those in the same age group, ethnicity, or location.
+1. **Identity-Based Interaction**: Exposure is weighted by demographic similarity. In the current configuration, **every agent** is assigned to a school-district hub, which acts as a primary center for interaction regardless of age. Agents are also more likely to interact with those in the same age group, ethnicity, or workplace.
 2. **Social Reinforcement**: Transition from Exposed to Doubtful, and Doubtful to Adopted, is reinforced by the number of neighbors who have already adopted the claim.
 3. **Misinformation Advantage**: Misinformation claims feature a `misinfo_multiplier` (default 6.0) representing higher viral potential and a lower `threshold` for adoption (0.25 vs 0.8 for truth).
 
