@@ -237,7 +237,7 @@ int main() {
   float playbackSpeed = 1.0f;
   sf::Clock playbackClock;
 
-  ViewMode currentView = GRID_VIEW;
+  ViewMode currentView = DISTRICT_VIEW;
   int currentDistrictId = 0;
 
   // New: Stateful tracking for sparse data
@@ -444,56 +444,8 @@ int main() {
     float simAreaYOffset = tabAreaHeight;
     float availableSimHeight = (float)WINDOW_SIZE - simAreaYOffset;
 
-    // 1. Draw Background & Grid/Zones
-    if (currentView == GRID_VIEW) {
-      for (int i = 0; i < g_config.numTowns; ++i) {
-        int r = i / numCols;
-        int c = i % numCols;
-        float gridCellW = (float)WINDOW_SIZE / numCols;
-        float gridCellH = (float)WINDOW_SIZE / numRows;
-
-        // Background prevalence coloring
-        if (townTimeline.count(currentTime) &&
-            townTimeline[currentTime].count(selectedClaim) &&
-            townTimeline[currentTime][selectedClaim].count(i)) {
-          const auto &tc = townTimeline[currentTime][selectedClaim][i];
-          int total = tc.susceptible + tc.exposed + tc.doubtful +
-                      tc.propagating + tc.notSpreading + tc.recovered;
-          float prevalence = (total > 0) ? (float)tc.propagating / total : 0.0f;
-
-          float cellScaleY = availableSimHeight / (float)WINDOW_SIZE;
-          sf::RectangleShape bg(
-              sf::Vector2f({gridCellW - 8, (gridCellH * cellScaleY) - 8}));
-          bg.setPosition({c * gridCellW + 4,
-                          simAreaYOffset + (r * gridCellH * cellScaleY) + 4});
-          bg.setFillColor(
-              sf::Color(255, 0, 0, (unsigned char)(prevalence * 180)));
-          bg.setOutlineThickness(2.0f);
-          bg.setOutlineColor(sf::Color(80, 80, 80));
-          window.draw(bg);
-
-          if (fontLoaded) {
-            sf::Text lb(font, "DISTRICT " + std::to_string(i), 12);
-            lb.setPosition(
-                {c * gridCellW + 10,
-                 simAreaYOffset + (r * gridCellH * cellScaleY) + 10});
-            lb.setFillColor(sf::Color(150, 150, 150, 150));
-            window.draw(lb);
-          }
-        } else {
-          // Default empty cell
-          float cellScaleY = availableSimHeight / (float)WINDOW_SIZE;
-          sf::RectangleShape bg(
-              sf::Vector2f({gridCellW - 8, (gridCellH * cellScaleY) - 8}));
-          bg.setPosition({c * gridCellW + 4,
-                          simAreaYOffset + (r * gridCellH * cellScaleY) + 4});
-          bg.setFillColor(sf::Color(30, 30, 30));
-          bg.setOutlineThickness(1.0f);
-          bg.setOutlineColor(sf::Color(50, 50, 50));
-          window.draw(bg);
-        }
-      }
-    } else {
+    // 1. Draw Background Zones (always show in 1-district study)
+    {
       // DISTRICT VIEW Zones
       if (townSchools.count(currentDistrictId)) {
         for (int sid : townSchools[currentDistrictId]) {
