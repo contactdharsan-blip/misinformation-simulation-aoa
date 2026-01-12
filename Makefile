@@ -1,7 +1,18 @@
+# Detector for OS
+UNAME_S := $(shell uname -s)
+
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2
-INCLUDES = -Iinclude -I/opt/homebrew/include
-LDFLAGS = -L/opt/homebrew/lib
+
+# Default paths (standard for Linux/MSYS2)
+INCLUDES = -Iinclude
+LDFLAGS = 
+
+# macOS specific overrides (Homebrew)
+ifeq ($(UNAME_S),Darwin)
+	INCLUDES += -I/opt/homebrew/include
+	LDFLAGS += -L/opt/homebrew/lib
+endif
 SFML_LIBS = -lsfml-graphics -lsfml-window -lsfml-system
 
 SRC_DIR = src

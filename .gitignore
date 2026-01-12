@@ -1,0 +1,14 @@
+# Binaries
+simulation
+visualizer
+obj/
+
+# Data
+output/
+*.csv
+*.o
+
+# IDE
+.vscode/
+.DS_Store
+*.swp

@@ -43,6 +43,7 @@ struct Configuration {
   double ethnicity_weight = 0.2;
   double religious_participation_prob = 0.6; // 60% of population is religious
   double same_workplace_weight = 0.45;
+  double homophily_strength = 2.0;
 
   // SEDPNR Transitions
   double prob_s_to_e = 0.1;
@@ -166,6 +167,8 @@ private:
         workplace_capacity = std::stoi(val);
       else if (key == "same_workplace_weight")
         same_workplace_weight = std::stod(val);
+      else if (key == "homophily_strength")
+        homophily_strength = std::stod(val);
       else if (key == "full_spatial_snapshot")
         full_spatial_snapshot = (val == "true" || val == "1");
     } catch (...) {

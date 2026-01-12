@@ -334,8 +334,10 @@ private:
       const Agent &other = city.getAgent(connId);
       if (other.getState(claim.claimId) == SEDPNRState::PROPAGATING) {
         // Multiplier based on similarity (homophily)
-        // Similar agents have stronger transmission influence
-        effectiveExposure += agent.calculateSimilarity(other);
+        // Strong Homophily = High Confirmation Bias (Identity-based trust)
+        // We use power function to disproportionately weight similar agents
+        double similarity = agent.calculateSimilarity(other);
+        effectiveExposure += std::pow(similarity, cfg.homophily_strength);
       }
     }
 
