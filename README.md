@@ -24,7 +24,7 @@ The population generation is calibrated to current Phoenix, AZ demographic data:
 
 ## Key Parameters (`parameters.cfg`)
 Current simulation configuration:
-- **Population**: 50,000 agents across 5 towns.
+- **Population**: 10,000 agents in a single district (Phoenix Central).
 - **Base Interaction Prob**: 0.05 (modulated by shared locations).
 - **Adoption Probability (D->P)**: 0.20 (High viral potential).
 - **Recovery Probability (P->R)**: 0.02 (Longer infectious period).
