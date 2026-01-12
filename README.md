@@ -2,7 +2,7 @@
 
 An Agent-Based Model (ABM) designed to simulate the spread of misinformation and truth within a synthetic model of Phoenix, Arizona.
 
-## 核心模型: SEDPNR
+## Core Model: SEDPNR
 The simulation utilizes the SEDPNR epidemiological model to track agent states regarding a claim:
 - **S (Susceptible)**: Has not yet encountered the claim.
 - **E (Exposed)**: Has been exposed via social connections.
