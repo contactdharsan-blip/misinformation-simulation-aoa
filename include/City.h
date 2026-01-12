@@ -215,81 +215,103 @@ private:
   int generateAge(double randomValue) {
     double cumulative = 0.0;
 
-    // Approximated from census data: 16% Child, 10% Teen, 25% Young Adult, 32%
-    // Adult, 17% Senior
-    double child_w = 0.16;
-    double teen_w = 0.10;
-    double young_w = 0.25;
-    double adult_w = 0.32;
-    // senior_w implicitly 0.17
-
-    cumulative += child_w;
+    // Use centralized constants
+    cumulative += PHOENIX_AGE_PROBS[0]; // Child
     if (randomValue < cumulative) {
       std::uniform_int_distribution<int> dist(0, 12);
       return dist(rng);
     }
 
-    cumulative += teen_w;
+    cumulative += PHOENIX_AGE_PROBS[1]; // Teen
     if (randomValue < cumulative) {
       std::uniform_int_distribution<int> dist(13, 19);
       return dist(rng);
     }
 
-    cumulative += young_w;
+    cumulative += PHOENIX_AGE_PROBS[2]; // Young Adult
     if (randomValue < cumulative) {
       std::uniform_int_distribution<int> dist(20, 35);
       return dist(rng);
     }
 
-    cumulative += adult_w;
+    cumulative += PHOENIX_AGE_PROBS[3]; // Adult
     if (randomValue < cumulative) {
-      std::uniform_int_distribution<int> dist(36, 60);
+      std::uniform_int_distribution<int> dist(36, 55);
       return dist(rng);
     }
 
     // Senior
-    std::uniform_int_distribution<int> dist(61, 90);
+    std::uniform_int_distribution<int> dist(56, 90);
     return dist(rng);
   }
 
   // Generate ethnicity based on Phoenix 2020-2023 distribution
   EthnicGroup generateEthnicity(double randomValue) {
-    // White 41.3%, Hispanic 41.8%, Black 7.4%, Asian 4.0%, Native 2.0%,
-    // Multi 3.5%
-    if (randomValue < 0.413)
+    double cumulative = 0.0;
+
+    cumulative += PHOENIX_ETHNICITY_PROBS[0];
+    if (randomValue < cumulative)
       return EthnicGroup::WHITE;
-    if (randomValue < 0.831)
+
+    cumulative += PHOENIX_ETHNICITY_PROBS[1];
+    if (randomValue < cumulative)
       return EthnicGroup::HISPANIC;
-    if (randomValue < 0.905)
+
+    cumulative += PHOENIX_ETHNICITY_PROBS[2];
+    if (randomValue < cumulative)
       return EthnicGroup::BLACK;
-    if (randomValue < 0.945)
+
+    cumulative += PHOENIX_ETHNICITY_PROBS[3];
+    if (randomValue < cumulative)
       return EthnicGroup::ASIAN;
-    if (randomValue < 0.965)
+
+    cumulative += PHOENIX_ETHNICITY_PROBS[4];
+    if (randomValue < cumulative)
       return EthnicGroup::NATIVE_AMERICAN;
+
     return EthnicGroup::MULTIRACIAL;
   }
 
   // Generate Religious Denomination based on Phoenix demographics
   ReligiousDenomination generateDenomination(double randomValue) {
-    // Catholic: 21%, Evangelical: 18%, Mainline: 9%, LDS: 5%, Jewish: 2%,
-    // Buddhist: 3%, Hindu: 2%, Muslim: 1%, None: 39%
-    if (randomValue < 0.21)
+    double cumulative = PHOENIX_RELIGION_PROBS[0];
+
+    // PHOENIX_RELIGION_PROBS[] order:
+    // None(0), Catholic(1), Evan(2), Main(3), LDS(4), Other(5)
+    // Map to Enum values:
+
+    if (randomValue < cumulative)
+      return ReligiousDenomination::NONE;
+
+    cumulative += PHOENIX_RELIGION_PROBS[1];
+    if (randomValue < cumulative)
       return ReligiousDenomination::CATHOLIC;
-    if (randomValue < 0.39)
+
+    cumulative += PHOENIX_RELIGION_PROBS[2];
+    if (randomValue < cumulative)
       return ReligiousDenomination::EVANGELICAL;
-    if (randomValue < 0.48)
+
+    cumulative += PHOENIX_RELIGION_PROBS[3];
+    if (randomValue < cumulative)
       return ReligiousDenomination::MAINLINE;
-    if (randomValue < 0.53)
+
+    cumulative += PHOENIX_RELIGION_PROBS[4];
+    if (randomValue < cumulative)
       return ReligiousDenomination::LDS;
-    if (randomValue < 0.55)
+
+    // Remaining (Other)
+    // Simple distribution for remaining small groups
+    double rem = randomValue - cumulative;
+    if (rem < 0.005)
       return ReligiousDenomination::JEWISH;
-    if (randomValue < 0.58)
-      return ReligiousDenomination::BUDDHIST;
-    if (randomValue < 0.60)
-      return ReligiousDenomination::HINDU;
-    if (randomValue < 0.61)
+    if (rem < 0.009)
       return ReligiousDenomination::MUSLIM;
-    return ReligiousDenomination::NONE;
+    if (rem < 0.013)
+      return ReligiousDenomination::BUDDHIST;
+    if (rem < 0.017)
+      return ReligiousDenomination::HINDU;
+
+    return ReligiousDenomination::NONE; // Fallback
   }
 
   // Generate education level based on age and Phoenix metrics

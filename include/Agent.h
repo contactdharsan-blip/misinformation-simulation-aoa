@@ -86,6 +86,30 @@ public:
     return std::max(0.0, std::min(1.0, credibility));
   }
 
+  // Calculate similarity multiplier with another agent (Base 1.0 + bonuses)
+  // Higher value means higher probability of influence/transmission
+  double calculateSimilarity(const Agent &other) const {
+    double score = 1.0; // Base multiplier
+
+    // Ethnicity match
+    if (ethnicity == other.ethnicity)
+      score += 0.2; // +20%
+
+    // Religion match
+    if (denomination == other.denomination)
+      score += 0.2; // +20%
+
+    // Age proximity (within 10 years)
+    if (std::abs(age - other.age) <= 10)
+      score += 0.1; // +10%
+
+    // Education level (within 1 level)
+    if (std::abs(educationLevel - other.educationLevel) <= 1)
+      score += 0.1; // +10%
+
+    return score;
+  }
+
   // ========================================================================
   // GET AGE GROUP
   // ========================================================================

@@ -327,26 +327,33 @@ private:
   SEDPNRState processSusceptible(Agent &agent, const Claim &claim,
                                  std::uniform_real_distribution<double> &dist) {
     auto &cfg = Configuration::instance();
-    // Check if any connected propagators
-    int propagatorContacts = 0;
+
+    // Calculate effective exposure from propagators, weighted by similarity
+    double effectiveExposure = 0.0;
     for (int connId : agent.connections) {
-      if (city.getAgent(connId).getState(claim.claimId) ==
-          SEDPNRState::PROPAGATING) {
-        propagatorContacts++;
+      const Agent &other = city.getAgent(connId);
+      if (other.getState(claim.claimId) == SEDPNRState::PROPAGATING) {
+        // Multiplier based on similarity (homophily)
+        // Similar agents have stronger transmission influence
+        effectiveExposure += agent.calculateSimilarity(other);
       }
     }
 
-    if (propagatorContacts > 0) {
+    if (effectiveExposure > 0.0) {
       // Calculate exposure probability
       double baseProb = cfg.prob_s_to_e;
 
-      // Modify by claim type
+      // If misinformation, it spreads FASTER (more effective
+      // exposure/frequency), not necessarily because people are more gullible
+      // (higher base prob). So we apply the multiplier to the EXPOSURE count.
       if (claim.isMisinformation) {
-        baseProb *= cfg.misinfo_multiplier;
+        effectiveExposure *= cfg.misinfo_multiplier;
       }
 
-      // Modify by number of contacts
-      double prob = 1.0 - std::pow(1.0 - baseProb, propagatorContacts);
+      // Modify by interactions (weighted by similarity)
+      // We use effectiveExposure as the exponent, treating "1.0 similarity" as
+      // one standard contact
+      double prob = 1.0 - std::pow(1.0 - baseProb, effectiveExposure);
 
       // Modify by claim passing frequency
       prob *= agent.getClaimPassingFrequency();
@@ -363,7 +370,19 @@ private:
   SEDPNRState processExposed(Agent &agent, const Claim &claim,
                              std::uniform_real_distribution<double> &dist) {
     auto &cfg = Configuration::instance();
-    if (agent.getTimeInState(claim.claimId) >= 0) {
+
+    // REQUIREMENT: Must have connections to someone who has adopted (P or N)
+    // to progress to Doubtful (social reinforcement)
+    bool hasReinforcement = false;
+    for (int connId : agent.connections) {
+      SEDPNRState s = city.getAgent(connId).getState(claim.claimId);
+      if (s == SEDPNRState::PROPAGATING || s == SEDPNRState::NOT_SPREADING) {
+        hasReinforcement = true;
+        break;
+      }
+    }
+
+    if (hasReinforcement && agent.getTimeInState(claim.claimId) >= 0) {
       if (dist(rng) < cfg.prob_e_to_d) {
         return SEDPNRState::DOUBTFUL;
       }
@@ -376,9 +395,9 @@ private:
   SEDPNRState processDoubtful(Agent &agent, const Claim &claim,
                               std::uniform_real_distribution<double> &dist) {
     auto &cfg = Configuration::instance();
+
     if (agent.getTimeInState(claim.claimId) >= 0) {
-      // Calculate adoption threshold based on claim type and agent
-      // credibility
+      // Calculate adoption threshold based on claim type and agent credibility
       double threshold =
           claim.isMisinformation ? cfg.misinfo_threshold : cfg.truth_threshold;
 
@@ -393,12 +412,26 @@ private:
       double probPropagate = cfg.prob_d_to_p * (1.0 - threshold);
       double probNotSpread = cfg.prob_d_to_n;
 
+      // REQUIREMENT: Validating social proof for adoption (P or N)
+      // If no neighbors are P or N, you can't adopt, but you CAN reject.
+      bool hasReinforcement = false;
+      for (int connId : agent.connections) {
+        SEDPNRState s = city.getAgent(connId).getState(claim.claimId);
+        if (s == SEDPNRState::PROPAGATING || s == SEDPNRState::NOT_SPREADING) {
+          hasReinforcement = true;
+          break;
+        }
+      }
+
       if (roll < probReject) {
         return SEDPNRState::RECOVERED;
-      } else if (roll < probReject + probPropagate) {
-        return SEDPNRState::PROPAGATING;
-      } else if (roll < probReject + probPropagate + probNotSpread) {
-        return SEDPNRState::NOT_SPREADING;
+      } else if (hasReinforcement) {
+        // Only allow adoption if reinforced
+        if (roll < probReject + probPropagate) {
+          return SEDPNRState::PROPAGATING;
+        } else if (roll < probReject + probPropagate + probNotSpread) {
+          return SEDPNRState::NOT_SPREADING;
+        }
       }
     }
 
