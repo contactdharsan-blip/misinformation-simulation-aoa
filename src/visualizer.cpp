@@ -372,13 +372,14 @@ int main() {
 
           // Check for tab clicks (y: 0 to 40)
           if (mouseY >= 0 && mouseY <= 40 && mouseX < 800) {
-            float tabWidth = 800.0f / (g_config.numTowns + 1);
+            float tabWidth = 800.0f / 3.0f;
             int tabIndex = (int)(mouseX / tabWidth);
             if (tabIndex == 0) {
-              currentView = GRID_VIEW;
-            } else {
-              currentView = DISTRICT_VIEW;
-              currentDistrictId = std::min(g_config.numTowns - 1, tabIndex - 1);
+              selectedClaim = -1; // SHOW ALL / OVERVIEW
+            } else if (tabIndex == 1) {
+              selectedClaim = 0; // TRUTH
+            } else if (tabIndex == 2) {
+              selectedClaim = 1; // MISINFO 1
             }
           }
         }
@@ -403,19 +404,21 @@ int main() {
 
     window.clear(sf::Color(15, 15, 15)); // Slightly off-black
 
-    // 0. Draw Tabs at top
+    // 0. Draw Tabs at top (Truth / Misinfo / Overview)
     float tabAreaHeight = 40.0f;
-    float tabWidth = (float)WINDOW_SIZE / (g_config.numTowns + 1);
-    for (int i = 0; i <= g_config.numTowns; ++i) {
+    float tabWidth = (float)WINDOW_SIZE / 3.0f;
+    for (int i = 0; i < 3; ++i) {
       bool isActive = false;
       std::string label;
       if (i == 0) {
-        isActive = (currentView == GRID_VIEW);
-        label = "Main City";
+        isActive = (selectedClaim == -1);
+        label = "OVERVIEW";
+      } else if (i == 1) {
+        isActive = (selectedClaim == 0);
+        label = "TRUTH SPREAD";
       } else {
-        isActive =
-            (currentView == DISTRICT_VIEW && currentDistrictId == (i - 1));
-        label = "Dist " + std::to_string(i - 1);
+        isActive = (selectedClaim >= 1);
+        label = "MISINFO SPREAD";
       }
 
       sf::RectangleShape tab(sf::Vector2f({tabWidth - 2, tabAreaHeight - 4}));
@@ -611,81 +614,53 @@ int main() {
     for (auto &s : toDraw) {
       float targetX, targetY;
 
-      if (currentView == GRID_VIEW) {
-        int r = s.townId / numCols;
-        int c = s.townId % numCols;
-        float gridCellW = (float)WINDOW_SIZE / numCols;
-        float gridCellH = (float)WINDOW_SIZE / numRows;
-        float cellScaleY = availableSimHeight / (float)WINDOW_SIZE;
+      // Force Single District View Logic to override Grid View for the
+      // 1-district setup
+      sf::Vector2f homePos = getAgentHomePos(s.agentId, WINDOW_SIZE);
+      sf::Vector2f sPos = {0, 0};
+      sf::Vector2f rPos = {0, 0};
+      sf::Vector2f wPos = {0, 0};
+      bool hasS = (s.schoolId != -1);
+      bool hasR = (s.religiousId != -1);
+      bool hasW = (s.workplaceId != -1);
+      float simScaleY = availableSimHeight / (float)WINDOW_SIZE;
 
-        if (s.schoolId != -1 && s.religiousId != -1) {
-          targetX = (c * gridCellW) + (gridCellW * 0.5f);
-          targetY = simAreaYOffset + (r * gridCellH * cellScaleY) +
-                    (gridCellH * cellScaleY * 0.55f);
-        } else if (s.schoolId != -1) {
-          targetX = (c * gridCellW) + (gridCellW * 0.25f);
-          targetY = simAreaYOffset + (r * gridCellH * cellScaleY) +
-                    (gridCellH * cellScaleY * 0.35f);
-        } else if (s.religiousId != -1) {
-          targetX = (c * gridCellW) + (gridCellW * 0.75f);
-          targetY = simAreaYOffset + (r * gridCellH * cellScaleY) +
-                    (gridCellH * cellScaleY * 0.75f);
-        } else {
-          targetX = (c * gridCellW) + (gridCellW * 0.5f);
-          targetY = simAreaYOffset + (r * gridCellH * cellScaleY) +
-                    (gridCellH * cellScaleY * 0.15f);
+      if (hasS)
+        sPos = getLocationCoords(s.schoolId, 12, WINDOW_SIZE);
+      if (hasR)
+        rPos = getLocationCoords(s.religiousId, 34, WINDOW_SIZE);
+      if (hasW)
+        wPos = getLocationCoords(s.workplaceId, 56, WINDOW_SIZE);
+
+      // Blend position: 50% Home, 50% Community hubs
+      float hWeight = 0.5f;
+      float cWeight = 0.5f;
+
+      float tx = hWeight * homePos.x;
+      float ty = hWeight * homePos.y;
+
+      int activeHubs = (hasS ? 1 : 0) + (hasR ? 1 : 0) + (hasW ? 1 : 0);
+      if (activeHubs > 0) {
+        float perHub = cWeight / activeHubs;
+        if (hasS) {
+          tx += perHub * sPos.x;
+          ty += perHub * sPos.y;
         }
+        if (hasR) {
+          tx += perHub * rPos.x;
+          ty += perHub * rPos.y;
+        }
+        if (hasW) {
+          tx += perHub * wPos.x;
+          ty += perHub * wPos.y;
+        }
+        targetX = tx;
+        targetY = ty;
       } else {
-        // DISTRICT VIEW
-        if (s.townId != currentDistrictId)
-          continue;
-
-        sf::Vector2f homePos = getAgentHomePos(s.agentId, WINDOW_SIZE);
-        sf::Vector2f sPos = {0, 0};
-        sf::Vector2f rPos = {0, 0};
-        sf::Vector2f wPos = {0, 0};
-        bool hasS = (s.schoolId != -1);
-        bool hasR = (s.religiousId != -1);
-        bool hasW = (s.workplaceId != -1);
-        float simScaleY = availableSimHeight / (float)WINDOW_SIZE;
-
-        if (hasS)
-          sPos = getLocationCoords(s.schoolId, 12, WINDOW_SIZE);
-        if (hasR)
-          rPos = getLocationCoords(s.religiousId, 34, WINDOW_SIZE);
-        if (hasW)
-          wPos = getLocationCoords(s.workplaceId, 56, WINDOW_SIZE);
-
-        // Blend position: 50% Home, 50% Community hubs
-        float hWeight = 0.5f;
-        float cWeight = 0.5f;
-
-        float tx = hWeight * homePos.x;
-        float ty = hWeight * homePos.y;
-
-        int activeHubs = (hasS ? 1 : 0) + (hasR ? 1 : 0) + (hasW ? 1 : 0);
-        if (activeHubs > 0) {
-          float perHub = cWeight / activeHubs;
-          if (hasS) {
-            tx += perHub * sPos.x;
-            ty += perHub * sPos.y;
-          }
-          if (hasR) {
-            tx += perHub * rPos.x;
-            ty += perHub * rPos.y;
-          }
-          if (hasW) {
-            tx += perHub * wPos.x;
-            ty += perHub * wPos.y;
-          }
-          targetX = tx;
-          targetY = ty;
-        } else {
-          targetX = homePos.x;
-          targetY = homePos.y;
-        }
-        targetY = simAreaYOffset + targetY * simScaleY;
+        targetX = homePos.x;
+        targetY = homePos.y;
       }
+      targetY = simAreaYOffset + targetY * simScaleY;
 
       auto offset = getAgentOffset(s.agentId);
       float radius = (currentView == GRID_VIEW) ? 1.0f : 1.5f;
