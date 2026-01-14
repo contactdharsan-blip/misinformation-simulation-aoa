@@ -440,14 +440,10 @@ int main() {
       window.draw(axes, 4, sf::PrimitiveType::Lines);
 
       if (maxTime > 0) {
-        // Find max adoption for scaling
-        int maxAdopted = 100; // Min scale
-        for (auto const &[t, claims] : overallTrends) {
-          for (auto const &[cid, count] : claims) {
-            if (count > maxAdopted)
-              maxAdopted = count;
-          }
-        }
+        // Use total population for scaling to show proportion
+        float totalPop = (float)g_config.population;
+        if (totalPop <= 0)
+          totalPop = 1.0f;
 
         // Draw Lines for each claim
         // Factual = Blue (0), Misinfo = Red (1)
@@ -463,7 +459,7 @@ int main() {
                               ? overallTrends[t][cid]
                               : 0;
             float px = graphX + ((float)t / maxTime) * graphW;
-            float py = graphY + graphH - ((float)adopted / maxAdopted) * graphH;
+            float py = graphY + graphH - ((float)adopted / totalPop) * graphH;
             line.push_back(sf::Vertex{sf::Vector2f(px, py), col});
           }
           if (line.size() > 1) {
@@ -478,9 +474,9 @@ int main() {
         xLabel.setFillColor(sf::Color(150, 150, 150));
         window.draw(xLabel);
 
-        sf::Text yLabel(font, "Adoption (P+N+R)", 14);
+        sf::Text yLabel(font, "Adoption Proportion (0.0 - 1.0)", 14);
         yLabel.setRotation(sf::degrees(-90.0f));
-        yLabel.setPosition({graphX - 35, graphY + graphH / 2.0f + 60});
+        yLabel.setPosition({graphX - 35, graphY + graphH / 2.0f + 80});
         yLabel.setFillColor(sf::Color(150, 150, 150));
         window.draw(yLabel);
       }

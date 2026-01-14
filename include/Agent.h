@@ -209,6 +209,16 @@ public:
   // STATE MANAGEMENT
   // ========================================================================
 
+  // Check if agent is already involved with any claim (not susceptible)
+  bool isInvolved() const {
+    for (auto const &[cid, state] : claimStates) {
+      if (state != SEDPNRState::SUSCEPTIBLE) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Get current state for a claim
   SEDPNRState getState(int claimId) const {
     auto it = claimStates.find(claimId);

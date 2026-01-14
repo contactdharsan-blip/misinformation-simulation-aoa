@@ -14,7 +14,7 @@
 struct Configuration {
   // Simulation Core
   int population = 1000;
-  int timesteps = 500;
+  int timesteps = 1000;
   unsigned int seed = 42;
 
   // Town/Location Settings

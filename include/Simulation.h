@@ -91,20 +91,24 @@ public:
     c.originTime = currentTime;
     claims.push_back(c);
 
-    // Initialize state history for this claim
     stateHistory[c.claimId] = std::vector<StateCounts>();
 
-    // Set initial propagators
     if (initialPropagators > 0 && city.getPopulationSize() > 0) {
       std::uniform_int_distribution<size_t> dist(0,
                                                  city.getPopulationSize() - 1);
 
+      int retries = 0;
       for (int i = 0; i < initialPropagators &&
                       i < static_cast<int>(city.getPopulationSize());
            ++i) {
         size_t agentIdx = dist(rng);
+        if (city.agents[agentIdx].isInvolved() && retries < 100) {
+          retries++;
+          i--;
+          continue;
+        }
+        retries = 0;
         city.agents[agentIdx].setState(c.claimId, SEDPNRState::PROPAGATING);
-
         if (c.originAgentId < 0) {
           claims.back().originAgentId = static_cast<int>(agentIdx);
         }
@@ -118,27 +122,29 @@ public:
     c.originTime = currentTime;
     claims.push_back(c);
 
-    // Initialize state history for this claim
     stateHistory[c.claimId] = std::vector<StateCounts>();
 
-    // For each town, find agents and pick some
     std::map<int, std::vector<size_t>> townToAgents;
     for (size_t i = 0; i < city.agents.size(); ++i) {
       townToAgents[city.agents[i].homeTownId].push_back(i);
     }
 
-    for (auto it = townToAgents.begin(); it != townToAgents.end(); ++it) {
-      std::vector<size_t> indices = it->second;
-      std::shuffle(indices.begin(), indices.end(), rng);
+    for (auto const &[townId, indices] : townToAgents) {
+      std::vector<size_t> shuffledIndices = indices;
+      std::shuffle(shuffledIndices.begin(), shuffledIndices.end(), rng);
 
-      for (int i = 0;
-           i < propagatorsPerTown && i < static_cast<int>(indices.size());
-           ++i) {
-        size_t agentIdx = indices[i];
-        city.agents[agentIdx].setState(c.claimId, SEDPNRState::PROPAGATING);
+      int count = 0;
+      for (size_t agentIdx : shuffledIndices) {
+        if (count >= propagatorsPerTown)
+          break;
 
-        if (claims.back().originAgentId < 0) {
-          claims.back().originAgentId = static_cast<int>(agentIdx);
+        if (!city.agents[agentIdx].isInvolved()) {
+          city.agents[agentIdx].setState(c.claimId, SEDPNRState::PROPAGATING);
+
+          if (claims.back().originAgentId < 0) {
+            claims.back().originAgentId = static_cast<int>(agentIdx);
+          }
+          count++;
         }
       }
     }
@@ -323,9 +329,31 @@ private:
   // STATE TRANSITION PROCESSORS
   // ========================================================================
 
+  bool hasOpposingSpreader(const Agent &agent, const Claim &claim) {
+    for (int connId : agent.connections) {
+      const Agent &neighbor = city.getAgent(connId);
+      for (auto const &[neighborCid, neighborState] : neighbor.claimStates) {
+        if (neighborState == SEDPNRState::PROPAGATING) {
+          // Truth is ID 0, Misinfo is IDs > 0
+          bool neighborIsMisinfo = (neighborCid != 0);
+          if (claim.isMisinformation != neighborIsMisinfo) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   // Process susceptible agent (S -> E)
   SEDPNRState processSusceptible(Agent &agent, const Claim &claim,
                                  std::uniform_real_distribution<double> &dist) {
+    // If agent is already occupied with another claim (one state at a time
+    // rule)
+    if (agent.isInvolved()) {
+      return SEDPNRState::SUSCEPTIBLE;
+    }
+
     auto &cfg = Configuration::instance();
 
     // Calculate effective exposure from propagators, weighted by similarity
@@ -396,6 +424,11 @@ private:
   // Process doubtful agent (D -> P, N, or R)
   SEDPNRState processDoubtful(Agent &agent, const Claim &claim,
                               std::uniform_real_distribution<double> &dist) {
+    // If I see the opposite view being spread, I commit to defending my view
+    if (hasOpposingSpreader(agent, claim)) {
+      return SEDPNRState::PROPAGATING;
+    }
+
     auto &cfg = Configuration::instance();
 
     if (agent.getTimeInState(claim.claimId) >= 0) {
@@ -447,6 +480,11 @@ private:
   // Process propagating agent (P -> N or R)
   SEDPNRState processPropagating(Agent &agent, const Claim &claim,
                                  std::uniform_real_distribution<double> &dist) {
+    // If I see the opposite view being spread, I stay active to defend my view
+    if (hasOpposingSpreader(agent, claim)) {
+      return SEDPNRState::PROPAGATING;
+    }
+
     auto &cfg = Configuration::instance();
     if (agent.getTimeInState(claim.claimId) >= 0) {
       double roll = dist(rng);
@@ -470,24 +508,9 @@ private:
                       std::uniform_real_distribution<double> &dist) {
     auto &cfg = Configuration::instance();
 
-    // Symmetric Defense Mechanism:
-    // If I hold a view (Truth or Misinfo) but am Not Spreading, and I encounter
-    // someone spreading the OPPOSITE view, I start propagating my view again.
-    // Reaction: Dormant Believer -> Active Spreader
-    for (int connId : agent.connections) {
-      Agent &neighbor = city.getAgent(connId);
-      for (auto const &[neighborCid, neighborState] : neighbor.claimStates) {
-        if (neighborState == SEDPNRState::PROPAGATING) {
-          // Determine if neighbor's claim is "Opposite"
-          // We assume ID 0 is Truth, IDs > 0 are Misinfo.
-          bool neighborIsMisinfo = (neighborCid != 0);
-
-          // If types differ (Truth vs Misinfo), trigger defense
-          if (claim.isMisinformation != neighborIsMisinfo) {
-            return SEDPNRState::PROPAGATING;
-          }
-        }
-      }
+    // Reactivate if I see the opposite view being spread
+    if (hasOpposingSpreader(agent, claim)) {
+      return SEDPNRState::PROPAGATING;
     }
 
     // Truth claims should not be recovered from
