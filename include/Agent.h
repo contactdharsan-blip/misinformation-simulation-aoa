@@ -211,7 +211,8 @@ public:
 
   // Check if agent is already involved with any claim (not susceptible)
   bool isInvolved() const {
-    for (auto const &[cid, state] : claimStates) {
+    for (auto const &entry : claimStates) {
+      SEDPNRState state = entry.second;
       if (state != SEDPNRState::SUSCEPTIBLE) {
         return true;
       }

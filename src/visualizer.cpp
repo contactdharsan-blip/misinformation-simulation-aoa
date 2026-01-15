@@ -405,8 +405,11 @@ int main() {
     std::vector<Snapshot> toDraw;
     if (selectedClaim == -1) {
       std::map<int, Snapshot> bestByAgent;
-      for (auto const &[cid, agents] : persistentState) {
-        for (auto const &[aid, s] : agents) {
+      for (auto const &entry : persistentState) {
+        const auto &agents = entry.second;
+        for (auto const &entry2 : agents) {
+          int aid = entry2.first;
+          const auto &s = entry2.second;
           if (!bestByAgent.count(aid))
             bestByAgent[aid] = s;
           else if (s.state == 3 ||
@@ -414,11 +417,15 @@ int main() {
             bestByAgent[aid] = s;
         }
       }
-      for (auto const &[id, s] : bestByAgent)
+      for (auto const &entry : bestByAgent) {
+        const auto &s = entry.second;
         toDraw.push_back(s);
+      }
     } else if (persistentState.count(selectedClaim)) {
-      for (auto const &[aid, s] : persistentState.at(selectedClaim))
+      for (auto const &entry : persistentState.at(selectedClaim)) {
+        const auto &s = entry.second;
         toDraw.push_back(s);
+      }
     }
 
     if (currentView == CHART_VIEW) {
@@ -573,8 +580,10 @@ int main() {
 
       StateCounts activeSC;
       if (selectedClaim == -1) {
-        for (auto const &[cid, towns] : persistentTownStats) {
-          for (auto const &[tid, tc] : towns) {
+        for (auto const &entry : persistentTownStats) {
+          const auto &towns = entry.second;
+          for (auto const &entry2 : towns) {
+            const auto &tc = entry2.second;
             activeSC.propagating += tc.propagating;
             activeSC.recovered += tc.recovered;
             activeSC.susceptible += tc.susceptible;
@@ -584,7 +593,8 @@ int main() {
           }
         }
       } else if (persistentTownStats.count(selectedClaim)) {
-        for (auto const &[tid, tc] : persistentTownStats[selectedClaim]) {
+        for (auto const &entry : persistentTownStats[selectedClaim]) {
+          const auto &tc = entry.second;
           activeSC.propagating += tc.propagating;
           activeSC.recovered += tc.recovered;
           activeSC.susceptible += tc.susceptible;

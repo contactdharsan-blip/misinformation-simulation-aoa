@@ -129,7 +129,9 @@ public:
       townToAgents[city.agents[i].homeTownId].push_back(i);
     }
 
-    for (auto const &[townId, indices] : townToAgents) {
+    for (auto const &entry : townToAgents) {
+      // int townId = entry.first;
+      const std::vector<size_t> &indices = entry.second;
       std::vector<size_t> shuffledIndices = indices;
       std::shuffle(shuffledIndices.begin(), shuffledIndices.end(), rng);
 
@@ -332,7 +334,9 @@ private:
   bool hasOpposingSpreader(const Agent &agent, const Claim &claim) {
     for (int connId : agent.connections) {
       const Agent &neighbor = city.getAgent(connId);
-      for (auto const &[neighborCid, neighborState] : neighbor.claimStates) {
+      for (auto const &entry : neighbor.claimStates) {
+        int neighborCid = entry.first;
+        SEDPNRState neighborState = entry.second;
         if (neighborState == SEDPNRState::PROPAGATING) {
           // Truth is ID 0, Misinfo is IDs > 0
           bool neighborIsMisinfo = (neighborCid != 0);
