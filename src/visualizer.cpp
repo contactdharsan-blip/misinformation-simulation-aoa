@@ -39,6 +39,7 @@ struct Config {
   int population = 1000;
   int schoolsPerTown = 3;   // Default, overwritten by config
   int religiousPerTown = 5; // Default, overwritten by config
+  int seed = 42;
 } g_config;
 
 // Load parameters.cfg to get town counts
@@ -58,10 +59,10 @@ void loadConfig() {
         g_config.numTowns = std::max(1, std::stoi(val));
       if (key == "population")
         g_config.population = std::max(1, std::stoi(val));
-      if (key == "schools_per_town")
-        g_config.schoolsPerTown = std::max(1, std::stoi(val));
       if (key == "religious_per_town")
         g_config.religiousPerTown = std::max(1, std::stoi(val));
+      if (key == "seed")
+        g_config.seed = std::stoi(val);
     } catch (...) {
       continue;
     }
@@ -77,14 +78,14 @@ sf::Vector2f getAgentOffset(int agentId) {
 
 // Deterministic home position for an agent in their district
 sf::Vector2f getAgentHomePos(int agentId, int windowSize) {
-  std::mt19937 rng(agentId + 8888);
+  std::mt19937 rng(agentId + 8888 + g_config.seed);
   std::uniform_real_distribution<float> dist(0.1f, 0.9f);
   return {dist(rng) * windowSize, dist(rng) * windowSize};
 }
 
 // Pseudo-random but consistent location coordinate generator
-sf::Vector2f getLocationCoords(int locationId, int seed, int windowSize) {
-  std::mt19937 rng(seed + locationId * 9876);
+sf::Vector2f getLocationCoords(int locationId, int salt, int windowSize) {
+  std::mt19937 rng(salt + locationId * 9876 + g_config.seed);
   std::uniform_real_distribution<float> dist(0.1f, 0.9f);
   return {dist(rng) * windowSize, dist(rng) * windowSize};
 }
@@ -362,7 +363,7 @@ int main() {
                   (pos.y / (float)WINDOW_SIZE) * availableSimHeight;
 
           // Variable large radius for ~70% total coverage
-          std::mt19937 rRng(rid * 111 + 555);
+          std::mt19937 rRng(rid * 111 + 555 + g_config.seed);
           std::uniform_real_distribution<float> rDist(80.0f, 130.0f);
           float radius = rDist(rRng);
 
@@ -386,7 +387,7 @@ int main() {
           zone.setPointCount(6);
 
           // Variable large size
-          std::mt19937 wRng(wid * 222 + 888);
+          std::mt19937 wRng(wid * 222 + 888 + g_config.seed);
           std::uniform_real_distribution<float> wDist(80.0f, 120.0f);
           float r = wDist(wRng);
 
