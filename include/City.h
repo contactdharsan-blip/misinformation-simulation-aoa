@@ -204,6 +204,51 @@ public:
   // Get population size
   size_t getPopulationSize() const { return agents.size(); }
 
+  // Find a random new connection candidate for an agent
+  // Returns -1 if no suitable candidate found
+  int findRandomNewConnection(int agentId, int excludeId) {
+    auto &cfg = Configuration::instance();
+    Agent &agent = agents[agentId];
+
+    // Check if agent has room for more connections
+    if (static_cast<int>(agent.connections.size()) >= cfg.max_connections) {
+      return -1;
+    }
+
+    // Build list of candidates (not self, not excludeId, not already connected)
+    std::vector<int> candidates;
+    for (size_t i = 0; i < agents.size(); ++i) {
+      int candidateId = static_cast<int>(i);
+      if (candidateId == agentId || candidateId == excludeId)
+        continue;
+
+      // Check if already connected
+      bool alreadyConnected = false;
+      for (int connId : agent.connections) {
+        if (connId == candidateId) {
+          alreadyConnected = true;
+          break;
+        }
+      }
+      if (alreadyConnected)
+        continue;
+
+      // Check if candidate has room
+      if (static_cast<int>(agents[candidateId].connections.size()) >=
+          cfg.max_connections)
+        continue;
+
+      candidates.push_back(candidateId);
+    }
+
+    if (candidates.empty())
+      return -1;
+
+    // Pick randomly
+    std::uniform_int_distribution<size_t> dist(0, candidates.size() - 1);
+    return candidates[dist(rng)];
+  }
+
 private:
   // ========================================================================
   // DEMOGRAPHIC GENERATION HELPERS

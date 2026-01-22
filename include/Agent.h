@@ -44,6 +44,10 @@ public:
   // Time spent in current state per claim (for state transitions)
   std::map<int, int> timeInState;
 
+  // Connection tenure: tracks steps since agent became Propagating while
+  // connection stayed Susceptible. Key: connection ID, Value: steps
+  std::map<int, int> connectionTenure;
+
   // Constructor
   Agent(int agentId, int agentAge, int eduLevel, int town, int school,
         int religious, int work, EthnicGroup ethnic,
@@ -245,6 +249,37 @@ public:
   int getTimeInState(int claimId) const {
     auto it = timeInState.find(claimId);
     if (it != timeInState.end()) {
+      return it->second;
+    }
+    return 0;
+  }
+
+  // ========================================================================
+  // CONNECTION MANAGEMENT (for pruning/rewiring)
+  // ========================================================================
+
+  void removeConnection(int connId) {
+    connections.erase(
+        std::remove(connections.begin(), connections.end(), connId),
+        connections.end());
+    connectionTenure.erase(connId);
+  }
+
+  void addConnection(int connId) {
+    // Only add if not already present
+    if (std::find(connections.begin(), connections.end(), connId) ==
+        connections.end()) {
+      connections.push_back(connId);
+    }
+  }
+
+  void resetConnectionTenure() { connectionTenure.clear(); }
+
+  void incrementConnectionTenure(int connId) { connectionTenure[connId]++; }
+
+  int getConnectionTenure(int connId) const {
+    auto it = connectionTenure.find(connId);
+    if (it != connectionTenure.end()) {
       return it->second;
     }
     return 0;

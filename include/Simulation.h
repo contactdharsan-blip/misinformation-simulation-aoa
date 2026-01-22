@@ -213,7 +213,71 @@ public:
       recordSpatialSnapshot();
     }
 
+    // Prune and rewire connections for propagating agents
+    if (Configuration::instance().enable_connection_pruning) {
+      pruneAndRewireConnections();
+    }
+
     currentTime++;
+  }
+
+  // ========================================================================
+  // CONNECTION PRUNING AND REWIRING
+  // Propagating agents cut ties with unresponsive connections
+  // ========================================================================
+  void pruneAndRewireConnections() {
+    auto &cfg = Configuration::instance();
+
+    for (auto &agent : city.agents) {
+      // Only propagating agents prune connections
+      bool isPropagating = false;
+      int propagatingClaimId = -1;
+
+      for (const auto &claim : claims) {
+        if (agent.getState(claim.claimId) == SEDPNRState::PROPAGATING) {
+          isPropagating = true;
+          propagatingClaimId = claim.claimId;
+          break;
+        }
+      }
+
+      if (!isPropagating)
+        continue;
+
+      // Check each connection
+      std::vector<int> toPrune;
+      for (int connId : agent.connections) {
+        Agent &conn = city.getAgent(connId);
+        SEDPNRState connState = conn.getState(propagatingClaimId);
+
+        if (connState == SEDPNRState::SUSCEPTIBLE) {
+          // Connection is still susceptible - increment tenure
+          agent.incrementConnectionTenure(connId);
+
+          if (agent.getConnectionTenure(connId) >= cfg.connection_patience) {
+            toPrune.push_back(connId);
+          }
+        } else {
+          // Connection has responded (any state but Susceptible) - reset tenure
+          agent.connectionTenure[connId] = 0;
+        }
+      }
+
+      // Prune and rewire
+      for (int connId : toPrune) {
+        // Remove bidirectional connection
+        Agent &conn = city.getAgent(connId);
+        agent.removeConnection(connId);
+        conn.removeConnection(agent.id);
+
+        // Find new random connection
+        int newConnId = city.findRandomNewConnection(agent.id, connId);
+        if (newConnId >= 0) {
+          agent.addConnection(newConnId);
+          city.getAgent(newConnId).addConnection(agent.id);
+        }
+      }
+    }
   }
 
   void recordSpatialSnapshot() {

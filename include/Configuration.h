@@ -64,6 +64,10 @@ struct Configuration {
   int output_interval = 1;
   bool full_spatial_snapshot = true; // Record all agents for visualization
 
+  // Connection Pruning
+  bool enable_connection_pruning = true;
+  int connection_patience = 50; // Steps before pruning unresponsive connection
+
   // Singleton access
   static Configuration &instance() {
     static Configuration config;
@@ -171,6 +175,10 @@ private:
         homophily_strength = std::stod(val);
       else if (key == "full_spatial_snapshot")
         full_spatial_snapshot = (val == "true" || val == "1");
+      else if (key == "enable_connection_pruning")
+        enable_connection_pruning = (val == "true" || val == "1");
+      else if (key == "connection_patience")
+        connection_patience = std::stoi(val);
     } catch (...) {
     }
   }
