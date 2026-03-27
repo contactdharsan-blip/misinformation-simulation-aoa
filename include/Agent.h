@@ -1,6 +1,7 @@
 #pragma once
 #include "Demographics.h"
 #include "SEDPNR.h"
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <random>
